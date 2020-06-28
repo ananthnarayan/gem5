@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2020 ARM Limited
+# Copyright (c) 2013 ARM Limited
 # All rights reserved.
 #
 # The license below extends only to copyright in the software and shall
@@ -35,49 +35,33 @@
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-from __future__ import print_function
-from __future__ import absolute_import
+#
+# Authors: Lisa Hsu
 
 import m5
 from m5.defines import buildEnv
 from m5.objects import *
-
 from common.Benchmarks import *
-from common import ObjectList
 
-vio_9p_help = """\
-Enable the Virtio 9P device and set the path to share. The default 9p path is
-m5ou5/9p/share, and it can be changed by setting VirtIO9p.root with --param. A
-sample guest mount command is: "mount -t 9p -o
-trans=virtio,version=9p2000.L,aname=<host-full-path> gem5 /mnt/9p" where
-"<host-full-path>" is the full path being shared on the host, and "gem5" is a
-fixed mount tag. This option requires the diod 9P server to be installed in the
-host PATH or selected with with: VirtIO9PDiod.diod.
-"""
+from common import CpuConfig
+from common import BPConfig
+from common import MemConfig
+from common import PlatformConfig
 
 def _listCpuTypes(option, opt, value, parser):
-    ObjectList.cpu_list.print()
+    CpuConfig.print_cpu_list()
     sys.exit(0)
 
 def _listBPTypes(option, opt, value, parser):
-    ObjectList.bp_list.print()
-    sys.exit(0)
-
-def _listHWPTypes(option, opt, value, parser):
-    ObjectList.hwp_list.print()
-    sys.exit(0)
-
-def _listIndirectBPTypes(option, opt, value, parser):
-    ObjectList.indirect_bp_list.print()
+    BPConfig.print_bp_list()
     sys.exit(0)
 
 def _listMemTypes(option, opt, value, parser):
-    ObjectList.mem_list.print()
+    MemConfig.print_mem_list()
     sys.exit(0)
 
 def _listPlatformTypes(option, opt, value, parser):
-    ObjectList.platform_list.print()
+    PlatformConfig.print_platform_list()
     sys.exit(0)
 
 # Add the very basic options that work also in the case of the no ISA
@@ -99,19 +83,15 @@ def addNoISAOptions(parser):
                       action="callback", callback=_listMemTypes,
                       help="List available memory types")
     parser.add_option("--mem-type", type="choice", default="DDR3_1600_8x8",
-                      choices=ObjectList.mem_list.get_names(),
+                      choices=["DDR3_1600_8x8","HMC_2500_1x32"],
                       help = "type of memory to use")
     parser.add_option("--mem-channels", type="int", default=1,
                       help = "number of memory channels")
-    parser.add_option("--mem-ranks", type="int", default=None,
+    parser.add_option("--mem-ranks", type="int", default=1,
                       help = "number of memory ranks per channel")
     parser.add_option("--mem-size", action="store", type="string",
                       default="512MB",
                       help="Specify the physical memory size (single memory)")
-    parser.add_option("--enable-dram-powerdown", action="store_true",
-                       help="Enable low-power states in DRAMCtrl")
-    parser.add_option("--mem-channels-intlv", type="int", default=0,
-                      help="Memory channels interleave")
 
 
     parser.add_option("--memchecker", action="store_true")
@@ -169,46 +149,17 @@ def addCommonOptions(parser):
                       action="callback", callback=_listCpuTypes,
                       help="List available CPU types")
     parser.add_option("--cpu-type", type="choice", default="AtomicSimpleCPU",
-                      choices=ObjectList.cpu_list.get_names(),
+                      choices=["AtomicSimpleCPU","TimingSimpleCPU","DerivO3CPU"],
                       help = "type of cpu to run with")
     parser.add_option("--list-bp-types",
                       action="callback", callback=_listBPTypes,
                       help="List available branch predictor types")
-    parser.add_option("--list-indirect-bp-types",
-                      action="callback", callback=_listIndirectBPTypes,
-                      help="List available indirect branch predictor types")
     parser.add_option("--bp-type", type="choice", default=None,
-                      choices=ObjectList.bp_list.get_names(),
+                      choices=BPConfig.bp_names(),
                       help = """
                       type of branch predictor to run with
                       (if not set, use the default branch predictor of
                       the selected CPU)""")
-    parser.add_option("--indirect-bp-type", type="choice", default=None,
-                      choices=ObjectList.indirect_bp_list.get_names(),
-                      help = "type of indirect branch predictor to run with")
-    parser.add_option("--list-hwp-types",
-                      action="callback", callback=_listHWPTypes,
-                      help="List available hardware prefetcher types")
-    parser.add_option("--l1i-hwp-type", type="choice", default=None,
-                      choices=ObjectList.hwp_list.get_names(),
-                      help = """
-                      type of hardware prefetcher to use with the L1
-                      instruction cache.
-                      (if not set, use the default prefetcher of
-                      the selected cache)""")
-    parser.add_option("--l1d-hwp-type", type="choice", default=None,
-                      choices=ObjectList.hwp_list.get_names(),
-                      help = """
-                      type of hardware prefetcher to use with the L1
-                      data cache.
-                      (if not set, use the default prefetcher of
-                      the selected cache)""")
-    parser.add_option("--l2-hwp-type", type="choice", default=None,
-                      choices=ObjectList.hwp_list.get_names(),
-                      help = """
-                      type of hardware prefetcher to use with the L2 cache.
-                      (if not set, use the default prefetcher of
-                      the selected cache)""")
     parser.add_option("--checker", action="store_true");
     parser.add_option("--cpu-clock", action="store", type="string",
                       default='2GHz',
@@ -322,8 +273,7 @@ def addCommonOptions(parser):
     parser.add_option("--work-cpus-checkpoint-count", action="store", type="int",
                       help="checkpoint and exit when active cpu count is reached")
     parser.add_option("--restore-with-cpu", action="store", type="choice",
-                      default="AtomicSimpleCPU",
-                      choices=ObjectList.cpu_list.get_names(),
+                      default="AtomicSimpleCPU", choices=["AtomicSimpleCPU","TimingSimpleCPU","DerivO3CPU"],
                       help = "cpu type for restoring from a checkpoint")
 
 
@@ -378,40 +328,9 @@ def addSEOptions(parser):
                       help="Redirect stdout to a file.")
     parser.add_option("--errout", default="",
                       help="Redirect stderr to a file.")
-    parser.add_option("--chroot", action="store", type="string", default=None,
-                      help="The chroot option allows a user to alter the "    \
-                           "search path for processes running in SE mode. "   \
-                           "Normally, the search path would begin at the "    \
-                           "root of the filesystem (i.e. /). With chroot, "   \
-                           "a user can force the process to begin looking at" \
-                           "some other location (i.e. /home/user/rand_dir)."  \
-                           "The intended use is to trick sophisticated "      \
-                           "software which queries the __HOST__ filesystem "  \
-                           "for information or functionality. Instead of "    \
-                           "finding files on the __HOST__ filesystem, the "   \
-                           "process will find the user's replacment files.")
-    parser.add_option("--interp-dir", action="store", type="string",
-                      default=None,
-                      help="The interp-dir option is used for "
-                           "setting the interpreter's path. This will "
-                           "allow to load the guest dynamic linker/loader "
-                           "itself from the elf binary. The option points to "
-                           "the parent folder of the guest /lib in the "
-                           "host fs")
-
-    parser.add_option("--redirects", action="append", type="string",
-                      default=[],
-                      help="A collection of one or more redirect paths "
-                           "to be used in syscall emulation."
-                           "Usage: gem5.opt [...] --redirects /dir1=/path/"
-                           "to/host/dir1 --redirects /dir2=/path/to/host/dir2")
-    parser.add_option("--wait-gdb", default=False,
-                      help="Wait for remote GDB to connect.")
-
-
 
 def addFSOptions(parser):
-    from common.FSConfig import os_types
+    from FSConfig import os_types
 
     # Simulation options
     parser.add_option("--timesync", action="store_true",
@@ -420,9 +339,8 @@ def addFSOptions(parser):
     # System options
     parser.add_option("--kernel", action="store", type="string")
     parser.add_option("--os-type", action="store", type="choice",
-                      choices=os_types[str(buildEnv['TARGET_ISA'])],
-                      default="linux",
-                      help="Specifies type of OS to boot")
+            choices=os_types[buildEnv['TARGET_ISA']], default="linux",
+            help="Specifies type of OS to boot")
     parser.add_option("--script", action="store", type="string")
     parser.add_option("--frame-capture", action="store_true",
             help="Stores changed frame buffers from the VNC server to compressed "\
@@ -435,8 +353,8 @@ def addFSOptions(parser):
                           action="callback", callback=_listPlatformTypes,
                       help="List available platform types")
         parser.add_option("--machine-type", action="store", type="choice",
-                choices=ObjectList.platform_list.get_names(),
-                default="VExpress_GEM5_V1")
+                choices=PlatformConfig.platform_names(),
+                default="VExpress_EMM")
         parser.add_option("--dtb-filename", action="store", type="string",
               help="Specifies device tree blob file to use with device-tree-"\
               "enabled kernels")
@@ -445,9 +363,8 @@ def addFSOptions(parser):
         parser.add_option("--enable-context-switch-stats-dump", \
                 action="store_true", help="Enable stats dump at context "\
                 "switches and dump tasks file (required for Streamline)")
-        parser.add_option("--vio-9p", action="store_true", help=vio_9p_help)
-        parser.add_option("--bootloader", action='append',
-                help="executable file that runs before the --kernel")
+        parser.add_option("--generate-dtb", action="store_true", default=False,
+                    help="Automatically generate a dtb file")
 
     # Benchmark options
     parser.add_option("--dual", action="store_true",
@@ -463,10 +380,10 @@ def addFSOptions(parser):
                       "ethernet traffic")
 
     # Disk Image Options
-    parser.add_option("--disk-image", action="append", type="string",
-            default=[], help="Path to the disk images to use.")
-    parser.add_option("--root-device", action="store", type="string",
-            default=None, help="OS device name for root partition")
+    parser.add_option("--disk-image", action="store", type="string", default=None,
+                      help="Path to the disk image to use.")
+    parser.add_option("--root-device", action="store", type="string", default=None,
+                      help="OS device name for root partition")
 
     # Command line options
     parser.add_option("--command-line", action="store", type="string",
@@ -475,3 +392,175 @@ def addFSOptions(parser):
     parser.add_option("--command-line-file", action="store",
                       default=None, type="string",
                       help="File with a template for the kernel command line")
+# @PIM
+def addPIMOptions(parser):
+    parser.add_option("--enable-pim", action="store_true")
+    parser.add_option("--pim-type", type="choice", default="cpu",
+                      choices=["cpu", "kernel", "hybrid"],
+		      help = "type of pim kernel inside the memory to use")
+    parser.add_option("--kernel-type", type="choice", default="adder",
+                      choices=["adder", "multiplier", "divider", "mod"],
+		      help = "type of pim kernel inside the memory to use")
+    parser.add_option("--num-pim-kernels", type="int", default=0,
+                  help="Number of in-memory kernels")
+    parser.add_option("--num-pim-processors", type="int", default=0,
+                  help="Number of in-memory processors")
+    parser.add_option("--coherence-granularity", type="string", default="64B")
+
+
+def add_hmc_options(parser):
+    # *****************************CROSSBAR PARAMETERS*************************
+    # Flit size of the main interconnect [1]
+    parser.add_option("--xbar-width", default=32, action="store", type=int,
+                        help="Data width of the main XBar (Bytes)")
+
+    # Clock frequency of the main interconnect [1]
+    # This crossbar, is placed on the logic-based of the HMC and it has its
+    # own voltage and clock domains, different from the DRAM dies or from the
+    # host.
+    parser.add_option("--xbar-frequency", default='1GHz', type=str,
+                        help="Clock Frequency of the main XBar")
+
+    # Arbitration latency of the HMC XBar [1]
+    parser.add_option("--xbar-frontend-latency", default=1, action="store",
+                        type=int, help="Arbitration latency of the XBar")
+
+    # Latency to forward a packet via the interconnect [1](two levels of FIFOs
+    # at the input and output of the inteconnect)
+    parser.add_option("--xbar-forward-latency", default=2, action="store",
+                        type=int, help="Forward latency of the XBar")
+
+    # Latency to forward a response via the interconnect [1](two levels of
+    # FIFOs at the input and output of the inteconnect)
+    parser.add_option("--xbar-response-latency", default=2, action="store",
+                        type=int, help="Response latency of the XBar")
+
+    # number of cross which connects 16 Vaults to serial link[7]
+    parser.add_option("--number-mem-crossbar", default=4, action="store",
+                        type=int, help="Number of crossbar in HMC")
+
+    # *****************************SERIAL LINK PARAMETERS**********************
+    # Number of serial links controllers [1]
+    parser.add_option("--num-links-controllers", default=4, action="store",
+                        type=int, help="Number of serial links")
+
+    # Number of packets (not flits) to store at the request side of the serial
+    #  link. This number should be adjusted to achive required bandwidth
+    parser.add_option("--link-buffer-size-req", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        request side of the serial link")
+
+    # Number of packets (not flits) to store at the response side of the serial
+    #  link. This number should be adjusted to achive required bandwidth
+    parser.add_option("--link-buffer-size-rsp", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        response side of the serial link")
+
+    # Latency of the serial link composed by SER/DES latency (1.6ns [4]) plus
+    # the PCB trace latency (3ns Estimated based on [5])
+    parser.add_option("--link-latency", default='4.6ns', type=str,
+                        help="Latency of the serial links")
+
+    # Clock frequency of the each serial link(SerDes) [1]
+    parser.add_option("--link-frequency", default='10GHz', type=str,
+                        help="Clock Frequency of the serial links")
+
+    # Clock frequency of serial link Controller[6]
+    # clk_hmc[Mhz]= num_lanes_per_link * lane_speed [Gbits/s] /
+    # data_path_width * 10^6
+    # clk_hmc[Mhz]= 16 * 10 Gbps / 256 * 10^6 = 625 Mhz
+    parser.add_option("--link-controller-frequency", default='625MHz',
+                        type=str, help="Clock Frequency of the link\
+                        controller")
+
+    # Latency of the serial link controller to process the packets[1][6]
+    # (ClockDomain = 625 Mhz )
+    # used here for calculations only
+    parser.add_option("--link-ctrl-latency", default=4, action="store",
+                        type=int, help="The number of cycles required for the\
+                        controller to process the packet")
+
+    # total_ctrl_latency = link_ctrl_latency + link_latency
+    # total_ctrl_latency = 4(Cycles) * 1.6 ns +  4.6 ns
+    parser.add_option("--total-ctrl-latency", default='11ns', type=str,
+                        help="The latency experienced by every packet\
+                        regardless of size of packet")
+
+    # Number of parallel lanes in each serial link [1]
+    parser.add_option("--num-lanes-per-link", default=16, action="store",
+                        type=int, help="Number of lanes per each link")
+
+    # Number of serial links [1]
+    parser.add_option("--num-serial-links", default=4, action="store",
+                        type=int, help="Number of serial links")
+
+    # speed of each lane of serial link - SerDes serial interface 10 Gb/s
+    parser.add_option("--serial-link-speed", default=10, action="store",
+                        type=int, help="Gbs/s speed of each lane of serial\
+                        link")
+
+    # address range for each of the serial links
+    parser.add_option("--serial-link-addr-range", default='1GB', type=str,
+                        help="memory range for each of the serial links.\
+                        Default: 1GB")
+
+    # *****************************PERFORMANCE MONITORING*********************
+    # The main monitor behind the HMC Controller
+    parser.add_option("--enable-global-monitor", action="store_true",
+                        help="The main monitor behind the HMC Controller")
+
+    # The link performance monitors
+    parser.add_option("--enable-link-monitor", action="store_true",
+                        help="The link monitors")
+
+    # link aggregator enable - put a cross between buffers & links
+    parser.add_option("--enable-link-aggr", action="store_true", help="The\
+                        crossbar between port and Link Controller")
+
+    parser.add_option("--enable-buff-div", action="store_true",
+                        help="Memory Range of Buffer is ivided between total\
+                        range")
+
+    # *****************************HMC ARCHITECTURE **************************
+    # Memory chunk for 16 vault - numbers of vault / number of crossbars
+    parser.add_option("--mem-chunk", default=4, action="store", type=int,
+                        help="Chunk of memory range for each cross bar in\
+                        arch 0")
+
+    # size of req buffer within crossbar, used for modelling extra latency
+    # when the reuqest go to non-local vault
+    parser.add_option("--xbar-buffer-size-req", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        request side of the crossbar")
+
+    # size of response buffer within crossbar, used for modelling extra latency
+    # when the response received from non-local vault
+    parser.add_option("--xbar-buffer-size-resp", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        response side of the crossbar")
+    # HMC device architecture. It affects the HMC host controller as well
+    parser.add_option("--arch", type="choice", choices=["same", "distributed",
+                        "mixed"], default="distributed", help="same: HMC with\
+                        4 links, all with same range.\ndistributed: HMC with\
+                        4 links with distributed range.\nmixed: mixed with\
+                        same and distributed range.\nDefault: distributed")
+    # HMC device - number of vaults
+    parser.add_option("--hmc-dev-num-vaults", default=16, action="store",
+                        type=int, help="number of independent vaults within\
+                        the HMC device. Note: each vault has a memory\
+                        controller (valut controller)\nDefault: 16")
+    # HMC device - vault capacity or size
+    parser.add_option("--hmc-dev-vault-size", default='256MB', type=str,
+                        help="vault storage capacity in bytes. Default:\
+                        256MB")
+    #parser.add_option("--mem-type", type=str, choices=["HMC_2500_1x32"],
+    #                    default="HMC_2500_1x32", help="type of HMC memory to\
+    #                    use. Default: HMC_2500_1x32")
+    #parser.add_option("--mem-channels", default=1, action="store", type=int,
+    #                    help="Number of memory channels")
+    #parser.add_option("--mem-ranks", default=1, action="store", type=int,
+    #                    help="Number of ranks to iterate across")
+    parser.add_option("--burst-length", default=256, action="store",
+                        type=int, help="burst length in bytes. Note: the\
+                        cache line size will be set to this value.\nDefault:\
+                        256")
