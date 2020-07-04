@@ -67,7 +67,7 @@
 #define M5OP_PANIC              0x54
 
 #define M5OP_RESERVED1          0x55 // Reserved for user, used to be annotate
-#define M5OP_RESERVED2          0x56 // Reserved for user
+#define mynewop_func            0x56 // Reserved for user
 #define M5OP_RESERVED3          0x57 // Reserved for user
 #define M5OP_RESERVED4          0x58 // Reserved for user
 #define M5OP_RESERVED5          0x59 // Reserved for user
@@ -106,7 +106,8 @@
     M5OP(m5_work_end, M5OP_WORK_END)                            \
     M5OP(m5_se_syscall, M5OP_SE_SYSCALL)                        \
     M5OP(m5_se_page_fault, M5OP_SE_PAGE_FAULT)                  \
-    M5OP(m5_dist_toggle_sync, M5OP_DIST_TOGGLE_SYNC)
+    M5OP(m5_dist_toggle_sync, M5OP_DIST_TOGGLE_SYNC)            \
+    M5OP(m5_mynewop, mynewop_func)
 
 #define M5OP_MERGE_TOKENS_I(a, b) a##b
 #define M5OP_MERGE_TOKENS(a, b) M5OP_MERGE_TOKENS_I(a, b)

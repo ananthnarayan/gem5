@@ -458,7 +458,16 @@ switchcpu(ThreadContext *tc)
     DPRINTF(PseudoInst, "PseudoInst::switchcpu()\n");
     exitSimLoop("switchcpu");
 }
+uint64_t
+mynewop(ThreadContext *tc, uint64_t arg1, uint64_t arg2)
+{
+    //if (!FullSystem) {
+      //  panicFsOnlyPseudoInst("mynewop");
+        //return 0;
+    //}
 
+    return arg1*arg2;
+}
 /*
  * This function is executed when the simulation is executing the syscall
  * handler in System Emulation mode.

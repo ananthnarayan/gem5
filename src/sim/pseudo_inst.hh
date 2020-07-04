@@ -116,6 +116,7 @@ void dumpresetstats(ThreadContext *tc, Tick delay, Tick period);
 void m5checkpoint(ThreadContext *tc, Tick delay, Tick period);
 void debugbreak(ThreadContext *tc);
 void switchcpu(ThreadContext *tc);
+uint64_t mynewop(ThreadContext *tc, uint64_t arg1, uint64_t arg2);
 void workbegin(ThreadContext *tc, uint64_t workid, uint64_t threadid);
 void workend(ThreadContext *tc, uint64_t workid, uint64_t threadid);
 void m5Syscall(ThreadContext *tc);
@@ -235,7 +236,10 @@ pseudoInst(ThreadContext *tc, uint8_t func, uint64_t &result)
         return true;
 
       case M5OP_RESERVED1:
-      case M5OP_RESERVED2:
+      //case M5OP_RESERVED2:
+      case mynewop_func:
+      	invokeSimcall<ABI>(tc, mynewop);
+        return true;
       case M5OP_RESERVED3:
       case M5OP_RESERVED4:
       case M5OP_RESERVED5:
