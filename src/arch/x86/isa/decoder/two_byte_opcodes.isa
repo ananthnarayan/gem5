@@ -208,14 +208,14 @@
                     0x55: m5reserved1({{
                         warn("M5 reserved opcode 1 ignored.\n");
                     }}, IsNonSpeculative);
-                    0x56: mynewop({{
-			            Rax = PseudoInst::mynewop(xc->tcBase(), Rdi, Rsi);
+                    0x56: pim_process({{
+			            PseudoInst::pim_process(xc->tcBase(),Rdi);
                     }}, IsNonSpeculative);
-                    0x57: m5reserved3({{
-                        warn("M5 reserved opcode 3 ignored.\n");
+                    0x57: cpu_print({{
+                        PseudoInst::cpu_print(xc->tcBase());
                     }}, IsNonSpeculative);
-                    0x58: m5reserved4({{
-                        warn("M5 reserved opcode 4 ignored.\n");
+                    0x58: host_process({{
+                        PseudoInst::host_process(xc->tcBase());
                     }}, IsNonSpeculative);
                     0x59: m5reserved5({{
                         warn("M5 reserved opcode 5 ignored.\n");

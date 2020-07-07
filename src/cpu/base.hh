@@ -114,7 +114,7 @@ class BaseCPU : public ClockedObject
     // Set at initialization, only time a cpuId might change is during a
     // takeover (which should be done from within the BaseCPU anyway,
     // therefore no setCpuId() method is provided
-    int _cpuId;
+     int _cpuId;
 
     /** Each cpu will have a socket ID that corresponds to its physical location
      * in the system. This is usually used to bucket cpu cores under single DVFS
@@ -154,6 +154,7 @@ class BaseCPU : public ClockedObject
      *
      * @return a reference to the data port
      */
+    //int _cpuId;
     virtual Port &getDataPort() = 0;
 
     /**
@@ -604,6 +605,7 @@ class BaseCPU : public ClockedObject
     std::vector<AddressMonitor> addressMonitor;
 
   public:
+    //int host_id;
     void armMonitor(ThreadID tid, Addr address);
     bool mwait(ThreadID tid, PacketPtr pkt);
     void mwaitAtomic(ThreadID tid, ThreadContext *tc, BaseTLB *dtb);
@@ -616,6 +618,15 @@ class BaseCPU : public ClockedObject
     bool waitForRemoteGDB() const;
 
     Cycles syscallRetryLatency;
+
+    virtual void PIM(ThreadContext *tc, uint64_t p_id){
+        fatal("Base CPU cannot process PIM.");
+    };
+
+    virtual void HOST(ThreadContext *tc){
+        fatal("PIM CPU cannot process Base CPU.");
+    };
+
 
   // Enables CPU to enter power gating on a configurable cycle count
   protected:

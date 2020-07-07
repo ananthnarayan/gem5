@@ -116,7 +116,10 @@ void dumpresetstats(ThreadContext *tc, Tick delay, Tick period);
 void m5checkpoint(ThreadContext *tc, Tick delay, Tick period);
 void debugbreak(ThreadContext *tc);
 void switchcpu(ThreadContext *tc);
-uint64_t mynewop(ThreadContext *tc, uint64_t arg1, uint64_t arg2);
+void pim_process(ThreadContext *tc, uint64_t p_id);
+void cpu_print(ThreadContext *tc);
+void host_process(ThreadContext *tc);
+
 void workbegin(ThreadContext *tc, uint64_t workid, uint64_t threadid);
 void workend(ThreadContext *tc, uint64_t workid, uint64_t threadid);
 void m5Syscall(ThreadContext *tc);
@@ -237,11 +240,15 @@ pseudoInst(ThreadContext *tc, uint8_t func, uint64_t &result)
 
       case M5OP_RESERVED1:
       //case M5OP_RESERVED2:
-      case mynewop_func:
-      	invokeSimcall<ABI>(tc, mynewop);
+      case pim_process_func:
+      	invokeSimcall<ABI>(tc, pim_process);
         return true;
-      case M5OP_RESERVED3:
-      case M5OP_RESERVED4:
+      case cpu_print_func:
+        invokeSimcall<ABI>(tc, cpu_print);
+        return true;
+      case host_process_func:
+        invokeSimcall<ABI>(tc, host_process);
+        return true;
       case M5OP_RESERVED5:
         warn("Unimplemented m5 op (%#x)\n", func);
         return false;

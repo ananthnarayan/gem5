@@ -268,6 +268,7 @@ class TimingSimpleCPU : public BaseSimpleCPU
     Port &getInstPort() override { return icachePort; }
 
   public:
+  
 
     DrainState drain() override;
     void drainResume() override;
@@ -362,6 +363,9 @@ class TimingSimpleCPU : public BaseSimpleCPU
      * @returns true if the CPU is drained, false otherwise.
      */
     bool tryCompleteDrain();
+    void PIM(ThreadContext *tc, uint64_t p_id) override;
+    void HOST(ThreadContext *tc) override;
+
 };
 
 #endif // __CPU_SIMPLE_TIMING_HH__

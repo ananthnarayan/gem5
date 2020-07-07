@@ -73,6 +73,8 @@
 #include "sim/system.hh"
 #include "sim/vptr.hh"
 
+
+
 using namespace std;
 using namespace Stats;
 
@@ -458,16 +460,28 @@ switchcpu(ThreadContext *tc)
     DPRINTF(PseudoInst, "PseudoInst::switchcpu()\n");
     exitSimLoop("switchcpu");
 }
-uint64_t
-mynewop(ThreadContext *tc, uint64_t arg1, uint64_t arg2)
+void
+pim_process(ThreadContext *tc, uint64_t p_id)
 {
     //if (!FullSystem) {
       //  panicFsOnlyPseudoInst("mynewop");
         //return 0;
     //}
 
-    return arg1*arg2;
+    tc->getCpuPtr()->PIM(tc,p_id);
 }
+
+void cpu_print(ThreadContext *tc)
+{
+    cout<<tc->getCpuPtr()<<"\n";
+}
+
+void host_process(ThreadContext *tc)
+{
+    //cout<<tc->getCpuPtr()<<"\n";
+    tc->getCpuPtr()->HOST(tc);
+}
+
 /*
  * This function is executed when the simulation is executing the syscall
  * handler in System Emulation mode.

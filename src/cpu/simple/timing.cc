@@ -1062,6 +1062,51 @@ TimingSimpleCPU::printAddr(Addr a)
     dcachePort.printAddr(a);
 }
 
+void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
+{
+  cout<<"Transferring control to PIM\n";
+  BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+  if(tc->getCpuPtr() == pim_cpu)
+  {
+    //advancePC(NoFault);
+    return;
+  }
+  if(!pim_cpu){
+    //pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(pim_id)).data());
+    //if(!pim_cpu)
+    fatal("Found no PIM processors.");
+  }
+
+  pim_cpu->takeOverFrom(this);
+  this->haltContext(curThread);
+  //pim_cpu->host_id=pim_cpu1->_cpuId;
+  pim_cpu->activateContext(0);
+  return;
+}
+
+void TimingSimpleCPU::HOST(ThreadContext *tc)
+{
+    cout<<"Transferring control to HOST\n";
+    BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
+    if(tc->getCpuPtr() == host_cpu)
+    {
+      //advancePC(NoFault);
+      return;
+    }
+    if(!host_cpu){
+      //pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(pim_id)).data());
+      //if(!pim_cpu)
+      fatal("Found no HOST processors.");
+    }
+
+    host_cpu->takeOverFrom(this);
+    this->haltContext(curThread);
+    //pim_cpu->host_id=pim_cpu1->_cpuId;
+    host_cpu->activateContext(0);
+    return;
+}
+
+
 
 ////////////////////////////////////////////////////////////////////////
 //

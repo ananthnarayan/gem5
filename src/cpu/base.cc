@@ -555,7 +555,10 @@ void
 BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     assert(threadContexts.size() == oldCPU->threadContexts.size());
-    assert(_cpuId == oldCPU->cpuId());
+    // assert(_cpuId == oldCPU->cpuId());
+    // assert(_switchedOut);
+    //assert(0 == oldCPU->cpuId());
+    //cout<<_switchedOut<<"\n";
     assert(_switchedOut);
     assert(oldCPU != this);
     _pid = oldCPU->getPid();
@@ -567,6 +570,7 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
     previousCycle = oldCPU->previousCycle;
 
     _switchedOut = false;
+    oldCPU->_switchedOut = true;
 
     ThreadID size = threadContexts.size();
     for (ThreadID i = 0; i < size; ++i) {
@@ -626,11 +630,11 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         }
     }
 
-    interrupts = oldCPU->interrupts;
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        interrupts[tid]->setCPU(this);
-    }
-    oldCPU->interrupts.clear();
+    // interrupts = oldCPU->interrupts;
+    // for (ThreadID tid = 0; tid < numThreads; tid++) {
+    //     interrupts[tid]->setCPU(this);
+    // }
+    //oldCPU->interrupts.clear();
 
     if (FullSystem) {
         for (ThreadID i = 0; i < size; ++i)
@@ -779,3 +783,23 @@ BaseCPU::waitForRemoteGDB() const
 {
     return params()->wait_for_remote_gdb;
 }
+
+// uint64_t BaseCPU::PIM(ThreadContext *tc, uint64_t arg1, uint64_t arg2)
+// {
+//   cout<<"1067\n"; BaseCPU* pim_cpu1 =(BaseCPU*)SimObject::find("system.cpu[0]");
+//   cout<<"1068\n";BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.cpu[1]");
+//   if(!pim_cpu){
+//     //pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(pim_id)).data());
+//   //  if(!pim_cpu)
+//     fatal("Found no PIM processors.");
+//   }
+//   pim_cpu->takeOverFrom(pim_cpu1);
+//   cout<<"1075\n";
+//   pim_cpu1->haltContext(pim_cpu->curThread);
+//   cout<<"1077\n";
+//   //pim_cpu->host_id=pim_cpu1->_cpuId;
+//   cout<<"1079\n";
+//   pim_cpu->activateContext(0);
+//   cout<<"1081\n";
+//   return arg1+arg2;
+// }

@@ -76,8 +76,6 @@ def get_processes(options):
     pargs = []
 
     workloads = options.cmd.split(';')
-    # print("Workloads cmd-split ",workloads,type(workloads))
-    # print("Options.cmd",options.cmd)  #Accessing value of key - cmd
     if options.input != "":
         inputs = options.input.split(';')
     if options.output != "":
@@ -87,41 +85,19 @@ def get_processes(options):
     if options.options != "":
         pargs = options.options.split(';')
 
-    # print("PRINTING")
-
-    #All lists declared above remain empty, options.(input,output,errout,options) are NONE
-    # print("Inputs",inputs,type(inputs))
-    # print("Outputs",outputs,type(outputs))
-    # print("Errouts",errouts,type(errouts))
-    # print("Pargs",pargs,type(pargs))
-
-    # workloads stores the path to the executable
-    # print(workloads)
-    # print("Options ",options)
-    # print(type(workloads))
     idx = 0
-    for wrkld in workloads:  #number of workloads is usually 1, when executing a normal binary
-        # print("wrkld",workloads)  #path to the executable
+    for wrkld in workloads:
         process = Process(pid = 100 + idx)
-        # print("pid",100+idx)
-        # print("Process type",type(Process))
-        process.executable = wrkld  #stores the path to the executable output
-        process.cwd = os.getcwd()  #stores the current working directory
-        # print("executable",process.executable)
-        # print("cwd",process.cwd)
+        process.executable = wrkld
+        process.cwd = os.getcwd()
 
-        # print("Options env",type(options.env))
-        if options.env:  #Environment variables, empty here
-            # print("Options.env not NULL")
+        if options.env:
             with open(options.env, 'r') as f:
                 process.env = [line.rstrip() for line in f]
 
-        #print("pargs",pargs) #pargs is empty
         if len(pargs) > idx:
-            # print("Updating cmd from pargs")
             process.cmd = [wrkld] + pargs[idx].split()
         else:
-            # print("Pargs is empty, process.cmd not updated")
             process.cmd = [wrkld]
 
         if len(inputs) > idx:
@@ -131,25 +107,15 @@ def get_processes(options):
         if len(errouts) > idx:
             process.errout = errouts[idx]
 
-        #Lengths are not greater than idx, hence values remain unchanged
-        # print("process.input",process.input)
-        # print("process.output",process.output)
-        # print("process.errout",process.errout)
-
         multiprocesses.append(process)
         idx += 1
 
-        # print("multiprocesses",multiprocesses,type(multiprocesses))
-
-    # print(options)
     if options.smt:
-        # print("options.smt TRUE")
         assert(options.cpu_type == "DerivO3CPU")
         return multiprocesses, idx
     else:
-        # print("options.smt FALSE")
         return multiprocesses, 1
-    #Returns the multiprocesses list which has the list of processes for Process class, and the number of processes.
+
 
 parser = optparse.OptionParser()
 Options.addCommonOptions(parser)
@@ -194,7 +160,6 @@ if options.bench:
                   file=sys.stderr)
             sys.exit(1)
 elif options.cmd:
-    # print("Here")
     multiprocesses, numThreads = get_processes(options)
 else:
     print("No workload specified. Exiting!\n", file=sys.stderr)
@@ -311,5 +276,18 @@ else:
     CacheConfig.config_cache(options, system)
     system.system_port = system.membus.slave
 
+    system.pim_cpu = TimingSimpleCPU(switched_out =True) 
+    # pim_vd = VoltageDomain(voltage="1.0V")
+    pim_vd = VoltageDomain(voltage="1.0V")
+    system.pim_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
+    print ("Creating PIM processors...")
+
+    #system.pim_cpu.icache_port = system.membus.slave
+    #system.pim_cpu.dcache_port = system.membus.slave
+    system.pim_cpu.workload = system.cpu[0].workload[0]
+
+    system.pim_cpu.createThreads()
+
+    #system.pim_cpu.isa = ['x86']
 root = Root(full_system = False, system = system)
 Simulation.run(options, root, system, FutureClass)

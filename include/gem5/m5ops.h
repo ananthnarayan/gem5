@@ -59,12 +59,15 @@ void m5_dist_toggle_sync(void);
 void m5_add_symbol(uint64_t addr, const char *symbol);
 void m5_load_symbol();
 void m5_panic(void);
-uint64_t m5_mynewop(uint64_t arg1, uint64_t arg2);
 void m5_work_begin(uint64_t workid, uint64_t threadid);
 void m5_work_end(uint64_t workid, uint64_t threadid);
 
 void m5_se_syscall();
 void m5_se_page_fault();
+
+void m5_pim_process(uint64_t p_id);
+void m5_cpu_print();
+void m5_host_process();
 
 #ifdef __cplusplus
 }
