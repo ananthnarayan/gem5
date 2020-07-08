@@ -155,6 +155,7 @@ class BaseCPU : public ClockedObject
      * @return a reference to the data port
      */
     //int _cpuId;
+    int host_id;
     virtual Port &getDataPort() = 0;
 
     /**

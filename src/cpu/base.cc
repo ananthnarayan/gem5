@@ -61,6 +61,8 @@
 #include "debug/SyscallVerbose.hh"
 #include "debug/Thread.hh"
 #include "mem/page_table.hh"
+#include "mem/cache/base.hh"
+#include "mem/cache/cache.hh"
 #include "params/BaseCPU.hh"
 #include "sim/clocked_object.hh"
 #include "sim/full_system.hh"
@@ -551,6 +553,7 @@ BaseCPU::switchOut()
     powerState->set(Enums::PwrState::OFF);
 }
 
+
 void
 BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 {
@@ -648,8 +651,55 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
     // ports are dangling while the old CPU has its ports connected
     // already. Unbind the old CPU and then bind the ports of the one
     // we are switching to.
-    getInstPort().takeOverFrom(&oldCPU->getInstPort());
-    getDataPort().takeOverFrom(&oldCPU->getDataPort());
+
+    BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+    if(pim_cpu==this)
+    {   
+        BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
+        BaseCache* l1_dcache;
+        BaseCache* l1_icache;
+        BaseCache* l2_cache;
+        if(!host_cpu)
+        {  
+           host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
+           l1_dcache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".dcache").data()); 
+           l1_icache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".icache").data()); 
+           l2_cache = (BaseCache*)SimObject::find("system.l2");
+            
+        }
+        else
+        {
+           l1_dcache = (BaseCache*)SimObject::find("system.cpu.dcache"); 
+           l1_icache = (BaseCache*)SimObject::find("system.cpu.icache");
+           l2_cache = (BaseCache*)SimObject::find("system.l2"); 
+        }
+
+        if(l1_dcache)
+        {  
+           cout<<"Flushing l1_dcache of Host CPU"<<"\n";
+           l1_dcache->memWriteback();
+           l1_dcache->memInvalidate();
+        }
+
+        if(l1_icache)
+        {  
+           cout<<"Flushing l1_icache of Host CPU"<<"\n";
+           l1_icache->memWriteback();
+           l1_icache->memInvalidate();
+        }
+
+        if(l2_cache)
+        {              
+           cout<<"Flushing l2_dcache of Host CPU"<<"\n";
+           l2_cache->memWriteback();
+           l2_cache->memInvalidate();
+        }
+
+ 
+    }
+
+    // getInstPort().takeOverFrom(&oldCPU->getInstPort());
+    // getDataPort().takeOverFrom(&oldCPU->getDataPort());
 }
 
 void

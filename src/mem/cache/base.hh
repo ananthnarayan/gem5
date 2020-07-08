@@ -802,7 +802,7 @@ class BaseCache : public ClockedObject
     /**
      * Write back dirty blocks in the cache using functional accesses.
      */
-    virtual void memWriteback() override;
+    // virtual void memWriteback() override;
 
     /**
      * Invalidates all blocks in the cache.
@@ -811,7 +811,7 @@ class BaseCache : public ClockedObject
      * memory. Make sure to call functionalWriteback() first if you
      * want the to write them to memory.
      */
-    virtual void memInvalidate() override;
+    // virtual void memInvalidate() override;
 
     /**
      * Determine if there are any dirty blocks in the cache.
@@ -919,6 +919,9 @@ class BaseCache : public ClockedObject
   public:
     /** System we are currently operating in. */
     System *system;
+
+    virtual void memWriteback() override;
+    virtual void memInvalidate() override;
 
     struct CacheCmdStats : public Stats::Group
     {
