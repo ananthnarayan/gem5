@@ -24,7 +24,7 @@ void as_string(BYTE* hash)
 	int i = 0;
 	char hash_string[64];
 	for(int i = 0; i < SHA256_BLOCK_SIZE; i++)
-		sprintf((hash_string + i), "%02x", *(hash + i));
+		sprintf((hash_string + (i * 2)), "%02x", *(hash + i));
 	printf("%s\n", hash_string);
 	return ;
 	
@@ -121,8 +121,8 @@ int main(int argc, char** argv)
 		sha256_update(&ctx, text, bytes_read);
 		sha256_final(&ctx, hashes[i]);
 		print_hash(hashes[i]);
-		i++;
 		as_string(hashes[i]);
+		i++;
 	}
 	free(text);
 	for(int j = 0; j < num_blocks; j++)
