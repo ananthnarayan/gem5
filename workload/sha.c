@@ -141,7 +141,7 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 		hash[i + 28] = (ctx->state[7] >> (24 - i * 8)) & 0x000000ff;
 	}
 }
-int main()
+int main(int argc, char **argv)
 {
 	SHA256_CTX ctx;
 
@@ -149,7 +149,7 @@ int main()
 	int INPUT_SIZE = 1500000;
 	BYTE* text = (BYTE*)malloc(sizeof(BYTE)*(INPUT_SIZE+1));
 	FILE *ptr;
-	ptr = fopen("/home/raghavendra/PIM/gem5/tests/test-progs/custom/input_1500k.txt","r");
+	ptr = fopen("merkle/merkle.c","r");
 
 	fread(text,INPUT_SIZE,1,ptr);
 	fclose(ptr);
