@@ -1574,6 +1574,17 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
     return pkt;
 }
 
+void 
+BaseCache::mem_Writeback()
+{
+	this->memWriteback();
+}
+
+void
+BaseCache::mem_Invalidate()
+{
+	this->memInvalidate();
+}
 
 void
 BaseCache::memWriteback()

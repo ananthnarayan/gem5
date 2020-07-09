@@ -62,7 +62,7 @@
 #include "sim/probe/probe.hh"
 #include "sim/system.hh"
 #include "debug/Mwait.hh"
-
+using namespace std;
 class BaseCPU;
 struct BaseCPUParams;
 class CheckerCPU;
@@ -534,7 +534,7 @@ class BaseCPU : public ClockedObject
         if (previousState == CPU_STATE_ON) {
             ppActiveCycles->notify(delta);
         }
-
+        
         switch (state)
         {
           case CPU_STATE_WAKEUP:
@@ -548,7 +548,6 @@ class BaseCPU : public ClockedObject
         }
 
         ppAllCycles->notify(delta);
-
         previousCycle = curCycle();
         previousState = state;
     }

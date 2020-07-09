@@ -647,11 +647,8 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
             schedule(profileEvent, curTick());
     }
 
-    // All CPUs have an instruction and a data port, and the new CPU's
-    // ports are dangling while the old CPU has its ports connected
-    // already. Unbind the old CPU and then bind the ports of the one
-    // we are switching to.
 
+    // Flushing local caches of host CPU
     BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
     if(pim_cpu==this)
     {   
@@ -677,27 +674,32 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         if(l1_dcache)
         {  
            cout<<"Flushing l1_dcache of Host CPU"<<"\n";
-           l1_dcache->memWriteback();
-           l1_dcache->memInvalidate();
+           l1_dcache->mem_Writeback();
+           l1_dcache->mem_Invalidate();
         }
 
         if(l1_icache)
         {  
            cout<<"Flushing l1_icache of Host CPU"<<"\n";
-           l1_icache->memWriteback();
-           l1_icache->memInvalidate();
+           l1_icache->mem_Writeback();
+           l1_icache->mem_Invalidate();
         }
 
         if(l2_cache)
         {              
            cout<<"Flushing l2_dcache of Host CPU"<<"\n";
-           l2_cache->memWriteback();
-           l2_cache->memInvalidate();
+           l2_cache->mem_Writeback();
+           l2_cache->mem_Invalidate();
         }
 
  
     }
 
+    // All CPUs have an instruction and a data port, and the new CPU's
+    // ports are dangling while the old CPU has its ports connected
+    // already. Unbind the old CPU and then bind the ports of the one
+    // we are switching to.
+    
     // getInstPort().takeOverFrom(&oldCPU->getInstPort());
     // getDataPort().takeOverFrom(&oldCPU->getDataPort());
 }
@@ -834,22 +836,3 @@ BaseCPU::waitForRemoteGDB() const
     return params()->wait_for_remote_gdb;
 }
 
-// uint64_t BaseCPU::PIM(ThreadContext *tc, uint64_t arg1, uint64_t arg2)
-// {
-//   cout<<"1067\n"; BaseCPU* pim_cpu1 =(BaseCPU*)SimObject::find("system.cpu[0]");
-//   cout<<"1068\n";BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.cpu[1]");
-//   if(!pim_cpu){
-//     //pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(pim_id)).data());
-//   //  if(!pim_cpu)
-//     fatal("Found no PIM processors.");
-//   }
-//   pim_cpu->takeOverFrom(pim_cpu1);
-//   cout<<"1075\n";
-//   pim_cpu1->haltContext(pim_cpu->curThread);
-//   cout<<"1077\n";
-//   //pim_cpu->host_id=pim_cpu1->_cpuId;
-//   cout<<"1079\n";
-//   pim_cpu->activateContext(0);
-//   cout<<"1081\n";
-//   return arg1+arg2;
-// }
