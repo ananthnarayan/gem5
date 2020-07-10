@@ -1070,20 +1070,21 @@ void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
   if(!pim_cpu){
     pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(p_id)).data());
     if(tc->getCpuPtr() == pim_cpu)
-      return;
+        return;
+    
     if(!pim_cpu)
-    fatal("Found no PIM processors.");
+        fatal("Found no PIM processors.");
   }
 
   if(tc->getCpuPtr() == pim_cpu)
   {
     return;
   }
-  cout<<"\nTransferring control to PIM\n";
+  cout<<"Transferring control to PIM\n";
   pim_cpu->host_id = this->cpuId();
   pim_cpu->takeOverFrom(this);
   this->haltContext(curThread);
-  pim_cpu->activateContext(tc->threadId());
+  pim_cpu->activateContext(curThread);
   return;
 }
 
@@ -1099,7 +1100,7 @@ void TimingSimpleCPU::HOST(ThreadContext *tc)
         return;
       
       if(!host_cpu)
-      fatal("Found no HOST processors.");
+        fatal("Found no HOST processors.");
     }
     
     if(tc->getCpuPtr() == host_cpu)
@@ -1110,7 +1111,7 @@ void TimingSimpleCPU::HOST(ThreadContext *tc)
     cout<<"Transferring control to HOST\n";
     host_cpu->takeOverFrom(this);
     this->haltContext(curThread);
-    host_cpu->activateContext(tc->threadId());
+    host_cpu->activateContext(curThread);
     return;
 }
 
