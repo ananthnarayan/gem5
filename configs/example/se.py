@@ -108,6 +108,7 @@ def get_processes(options):
             process.errout = errouts[idx]
 
         multiprocesses.append(process)
+        
         idx += 1
 
     if options.smt:
@@ -276,17 +277,43 @@ else:
     CacheConfig.config_cache(options, system)
     system.system_port = system.membus.slave
 
-    system.pim_cpu = TimingSimpleCPU(switched_out =True) 
-    # pim_vd = VoltageDomain(voltage="1.0V")
-    pim_vd = VoltageDomain(voltage="1.0V")
-    system.pim_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-    print ("Creating PIM processors...")
+    np = options.num_cpus
+    num_pim_cpus = options.num_pim_processors
+    if num_pim_cpus==1:
+        system.pim_cpu = TimingSimpleCPU(switched_out =True) 
+        pim_vd = VoltageDomain(voltage="1.0V")
+        system.pim_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
+        print ("Creating PIM processor ")
 
-    #system.pim_cpu.icache_port = system.membus.slave
-    #system.pim_cpu.dcache_port = system.membus.slave
-    system.pim_cpu.workload = system.cpu[0].workload[0]
+        system.pim_cpu.icache_port = system.membus.slave
+        system.pim_cpu.dcache_port = system.membus.slave
+        system.pim_cpu.workload = system.cpu[0].workload[0]
 
-    system.pim_cpu.createThreads()
+        system.pim_cpu.createThreads()
+    elif num_pim_cpus>1:
+        system.pim_cpu0 = TimingSimpleCPU(switched_out =True) 
+        pim_vd = VoltageDomain(voltage="1.0V")
+        system.pim_cpu0.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
+        print ("Creating PIM processor ")
+
+        system.pim_cpu0.workload = system.cpu[0].workload[0]
+        system.pim_cpu0.icache_port = system.membus.slave
+        system.pim_cpu0.dcache_port = system.membus.slave
+        
+        system.pim_cpu0.createThreads()
+
+
+        system.pim_cpu1 = TimingSimpleCPU(switched_out=True) 
+        pim_vd = VoltageDomain(voltage="1.0V")
+        system.pim_cpu1.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
+        print ("Creating PIM processor ")
+
+        system.pim_cpu1.workload = system.cpu[1].workload[0]
+        system.pim_cpu1.icache_port = system.membus.slave
+        system.pim_cpu1.dcache_port = system.membus.slave
+        system.pim_cpu1.createThreads()
+    
+        
 
     #system.pim_cpu.isa = ['x86']
 root = Root(full_system = False, system = system)

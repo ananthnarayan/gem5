@@ -1080,6 +1080,7 @@ void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
   {
     return;
   }
+  pim_cpu->p_id = p_id;
   cout<<"Transferring control to PIM\n";
   pim_cpu->host_id = this->cpuId();
   pim_cpu->takeOverFrom(this);

@@ -637,7 +637,7 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
     // for (ThreadID tid = 0; tid < numThreads; tid++) {
     //     interrupts[tid]->setCPU(this);
     // }
-    //oldCPU->interrupts.clear();
+    // oldCPU->interrupts.clear();
 
     if (FullSystem) {
         for (ThreadID i = 0; i < size; ++i)
@@ -648,8 +648,12 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
     }
 
 
-    // Flushing local caches of host CPU
+    //Flushing local caches of host CPU
     BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+    if(!pim_cpu)
+    {
+        pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(this->p_id)).data());
+    }
     if(pim_cpu==this)
     {   
         BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
