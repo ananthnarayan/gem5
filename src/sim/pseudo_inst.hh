@@ -116,7 +116,7 @@ void dumpresetstats(ThreadContext *tc, Tick delay, Tick period);
 void m5checkpoint(ThreadContext *tc, Tick delay, Tick period);
 void debugbreak(ThreadContext *tc);
 void switchcpu(ThreadContext *tc);
-void pim_process(ThreadContext *tc, uint64_t p_id);
+void pim_process(ThreadContext *tc, uint64_t pim_id);
 void cpu_print(ThreadContext *tc);
 void host_process(ThreadContext *tc);
 

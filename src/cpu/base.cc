@@ -558,10 +558,6 @@ void
 BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     assert(threadContexts.size() == oldCPU->threadContexts.size());
-    // assert(_cpuId == oldCPU->cpuId());
-    // assert(_switchedOut);
-    //assert(0 == oldCPU->cpuId());
-    //cout<<_switchedOut<<"\n";
     assert(_switchedOut);
     assert(oldCPU != this);
     _pid = oldCPU->getPid();
@@ -633,12 +629,6 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         }
     }
 
-    // interrupts = oldCPU->interrupts;
-    // for (ThreadID tid = 0; tid < numThreads; tid++) {
-    //     interrupts[tid]->setCPU(this);
-    // }
-    // oldCPU->interrupts.clear();
-
     if (FullSystem) {
         for (ThreadID i = 0; i < size; ++i)
             threadContexts[i]->profileClear();
@@ -648,11 +638,11 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
     }
 
 
-    //Flushing local caches of host CPU
+    //Flushing local caches of host CPU when transferring control to a PIM core
     BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
     if(!pim_cpu)
     {
-        pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(this->p_id)).data());
+        pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(this->pim_id)).data());
     }
     if(pim_cpu==this)
     {   
@@ -677,35 +667,27 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 
         if(l1_dcache)
         {  
-           cout<<"Flushing l1_dcache of Host CPU"<<"\n";
+           cout<<"Flushing l1_dcache of Host CPU "<<this->host_id<<"\n";
            l1_dcache->mem_Writeback();
            l1_dcache->mem_Invalidate();
         }
 
         if(l1_icache)
         {  
-           cout<<"Flushing l1_icache of Host CPU"<<"\n";
+           cout<<"Flushing l1_icache of Host CPU "<<this->host_id<<"\n";
            l1_icache->mem_Writeback();
            l1_icache->mem_Invalidate();
         }
 
         if(l2_cache)
         {              
-           cout<<"Flushing l2_dcache of Host CPU"<<"\n";
+           cout<<"Flushing l2_dcache of Host CPU "<<this->host_id<<"\n";
            l2_cache->mem_Writeback();
            l2_cache->mem_Invalidate();
         }
 
- 
     }
 
-    // All CPUs have an instruction and a data port, and the new CPU's
-    // ports are dangling while the old CPU has its ports connected
-    // already. Unbind the old CPU and then bind the ports of the one
-    // we are switching to.
-    
-    // getInstPort().takeOverFrom(&oldCPU->getInstPort());
-    // getDataPort().takeOverFrom(&oldCPU->getDataPort());
 }
 
 void

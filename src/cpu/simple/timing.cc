@@ -1062,13 +1062,14 @@ TimingSimpleCPU::printAddr(Addr a)
     dcachePort.printAddr(a);
 }
 
-void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
+/** CPU function to trabsfer control to a PIM core */
+void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t pim_id)
 {
   
   BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
 
   if(!pim_cpu){
-    pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(p_id)).data());
+    pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(pim_id)).data());
     if(tc->getCpuPtr() == pim_cpu)
         return;
     
@@ -1080,8 +1081,8 @@ void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
   {
     return;
   }
-  pim_cpu->p_id = p_id;
-  cout<<"Transferring control to PIM\n";
+  pim_cpu->pim_id = pim_id;
+  cout<<"Transferring control to PIM core "<<pim_id<<"\n";
   pim_cpu->host_id = this->cpuId();
   pim_cpu->takeOverFrom(this);
   this->haltContext(curThread);
@@ -1089,6 +1090,7 @@ void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
   return;
 }
 
+/** CPU function to transfer control back to the Host CPU from a PIM core*/
 void TimingSimpleCPU::HOST(ThreadContext *tc)
 {   
     BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
@@ -1109,7 +1111,7 @@ void TimingSimpleCPU::HOST(ThreadContext *tc)
       return;
     }
     host_cpu->host_id = this->host_id;
-    cout<<"Transferring control to HOST\n";
+    cout<<"Transferring control to HOST core "<<this->host_id<<"\n";
     host_cpu->takeOverFrom(this);
     this->haltContext(curThread);
     host_cpu->activateContext(curThread);

@@ -460,25 +460,23 @@ switchcpu(ThreadContext *tc)
     DPRINTF(PseudoInst, "PseudoInst::switchcpu()\n");
     exitSimLoop("switchcpu");
 }
-void
-pim_process(ThreadContext *tc, uint64_t p_id)
-{
-    //if (!FullSystem) {
-      //  panicFsOnlyPseudoInst("mynewop");
-        //return 0;
-    //}
 
-    tc->getCpuPtr()->PIM(tc,p_id);
+//Command to transfer control to a PIM core with a core ID as parameter
+void
+pim_process(ThreadContext *tc, uint64_t pim_id)
+{
+    tc->getCpuPtr()->PIM(tc,pim_id);
 }
 
+//Prints the address of the present core the process is running on
 void cpu_print(ThreadContext *tc)
 {
     cout<<tc->getCpuPtr()<<"\n";
 }
 
+//Command to transfer control back to the respective Host core 
 void host_process(ThreadContext *tc)
 {
-    //cout<<tc->getCpuPtr()<<"\n";
     tc->getCpuPtr()->HOST(tc);
 }
 

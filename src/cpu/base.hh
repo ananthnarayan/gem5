@@ -154,9 +154,11 @@ class BaseCPU : public ClockedObject
      *
      * @return a reference to the data port
      */
-    //int _cpuId;
+    
+    /** Host core ID fore reference (from which the control was transferred) */
     int host_id;
-    int p_id;
+    /** PIM core ID for reference (Used only for PIM cores*/
+    int pim_id; 
     virtual Port &getDataPort() = 0;
 
     /**
@@ -620,7 +622,7 @@ class BaseCPU : public ClockedObject
 
     Cycles syscallRetryLatency;
 
-    virtual void PIM(ThreadContext *tc, uint64_t p_id){
+    virtual void PIM(ThreadContext *tc, uint64_t pim_id){
         fatal("Base CPU cannot process PIM.");
     };
 
