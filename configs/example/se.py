@@ -139,8 +139,8 @@ numThreads = 1
 
 if options.bench:
     apps = options.bench.split("-")
-    if len(apps) != options.num_cpus:
-        print("number of benchmarks not equal to set num_cpus!")
+    if len(apps) != options.num_host_cpus:
+        print("number of benchmarks not equal to set num_host_cpus!")
         sys.exit(1)
 
     for app in apps:
@@ -171,11 +171,11 @@ else:
 CPUClass.numThreads = numThreads
 
 # Check -- do not allow SMT with multiple CPUs
-if options.smt and options.num_cpus > 1:
+if options.smt and options.num_host_cpus > 1:
     fatal("You cannot use SMT with multiple CPUs!")
 
-np = options.num_cpus
-system = System(cpu = [CPUClass(cpu_id=i) for i in xrange(np)],
+num_host_cpus = options.num_host_cpus
+system = System(cpu = [CPUClass(cpu_id=i) for i in xrange(num_host_cpus)],
                 mem_mode = test_mem_mode,
                 mem_ranges = [AddrRange(options.mem_size)],
                 cache_line_size = options.cacheline_size)
@@ -224,7 +224,7 @@ if options.simpoint_profile:
     if np > 1:
         fatal("SimPoint generation not supported with more than one CPUs")
 
-for i in xrange(np):
+for i in xrange(num_host_cpus):
     if options.smt:
         system.cpu[i].workload = multiprocesses
     elif len(multiprocesses) == 1:
@@ -246,7 +246,7 @@ for i in xrange(np):
 
 if options.ruby:
     Ruby.create_system(options, False, system)
-    assert(options.num_cpus == len(system.ruby._cpu_ports))
+    assert(options.num_host_cpus == len(system.ruby._cpu_ports))
 
     system.ruby.clk_domain = SrcClockDomain(clock = options.ruby_clock,
                                         voltage_domain = system.voltage_domain)
@@ -277,44 +277,32 @@ else:
     CacheConfig.config_cache(options, system)
     system.system_port = system.membus.slave
 
-    np = options.num_cpus
+    num_host_cpus = options.num_host_cpus
     num_pim_cpus = options.num_pim_processors
+    #If number of pim processors is 1, it will be named as pim_cpu
     if num_pim_cpus==1:
         system.pim_cpu = TimingSimpleCPU(switched_out =True) 
         pim_vd = VoltageDomain(voltage="1.0V")
         system.pim_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        print ("Creating PIM processor ")
-
+        print("Creating PIM processor 0")
         system.pim_cpu.icache_port = system.membus.slave
         system.pim_cpu.dcache_port = system.membus.slave
         system.pim_cpu.workload = system.cpu[0].workload[0]
-
         system.pim_cpu.createThreads()
+
+    #If number of pim processors is more than 1, each pim cpu will be appended with an index, pim_cpu<index>
     elif num_pim_cpus>1:
-        system.pim_cpu0 = TimingSimpleCPU(switched_out =True) 
+        system.pim_cpu = [TimingSimpleCPU(cpu_id=i, switched_out=True) for i in range(num_host_cpus,num_host_cpus+num_pim_cpus)]
         pim_vd = VoltageDomain(voltage="1.0V")
-        system.pim_cpu0.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        print ("Creating PIM processor ")
+        i = 0
+        for pim_cpu in system.pim_cpu:
+            print("Creating PIM Processor ",str(i))
+            pim_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
+            pim_cpu.icache_port = system.membus.slave
+            pim_cpu.dcache_port = system.membus.slave
+            pim_cpu.workload = system.cpu[i-num_host_cpus].workload[0]
+            pim_cpu.createThreads()
+            i = i + 1
 
-        system.pim_cpu0.workload = system.cpu[0].workload[0]
-        system.pim_cpu0.icache_port = system.membus.slave
-        system.pim_cpu0.dcache_port = system.membus.slave
-        
-        system.pim_cpu0.createThreads()
-
-
-        system.pim_cpu1 = TimingSimpleCPU(switched_out=True) 
-        pim_vd = VoltageDomain(voltage="1.0V")
-        system.pim_cpu1.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        print ("Creating PIM processor ")
-
-        system.pim_cpu1.workload = system.cpu[1].workload[0]
-        system.pim_cpu1.icache_port = system.membus.slave
-        system.pim_cpu1.dcache_port = system.membus.slave
-        system.pim_cpu1.createThreads()
-    
-        
-
-    #system.pim_cpu.isa = ['x86']
 root = Root(full_system = False, system = system)
 Simulation.run(options, root, system, FutureClass)
