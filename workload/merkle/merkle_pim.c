@@ -11,6 +11,8 @@
 
 #include "sha256.h"
 #include "merkle.h"
+#include "gem5/m5ops.h"
+#include "gem5/asm/generic/m5ops.h"
 
 #define LENGTH_HASH_AS_STRING (SHA256_BLOCK_SIZE * 2 + 1)  
 int main(int argc, char** argv)
@@ -83,6 +85,8 @@ int main(int argc, char** argv)
 	 * as we go up the merkle tree. 
 	 *
 	 * */
+	// m5_cpu_print();
+	m5_pim_process(0);
 	while(!feof(file))
 	{
 		size_t bytes_read;
@@ -91,21 +95,25 @@ int main(int argc, char** argv)
 		text[block_size] = '\0';
 		bytes_read = fread((void*)text, sizeof(BYTE), (size_t)block_size, file);
 		text[bytes_read] = '\0';
+		// m5_pim_process(0);
 		sha256_init(&ctx);
 		sha256_update(&ctx, text, bytes_read);
 		sha256_final(&ctx, hashes[i]);
+		// m5_host_process();
 		//print_hash(hashes[i]);
 		as_string(hashes[i], hashes_as_strings[i], LENGTH_HASH_AS_STRING);
 		//fprintf(stdout, "\t%s\n", hashes_as_strings[i]);
 		i++;
 	}
 	fclose(file);
+	// m5_cpu_print();
 
 	unsigned int num_hashes_to_process = num_blocks;
 	fprintf(stderr, "invoking run_merkle\n");
 	run_merkle(num_hashes_to_process, hashes_as_strings);
 	fprintf(stdout, "Blocks %d\n", num_blocks);
 	fprintf(stdout, "Final hash: %s\n", hashes_as_strings[0]);
+	// m5_host_process();
 	for(int j = 0; j < num_blocks; j++)
 	{
 		//fprintf(stderr, "Freeing hashes pointer (%d): %p %p\n", j, hashes[j], hashes_as_strings[j]);
@@ -115,6 +123,7 @@ int main(int argc, char** argv)
 	free(text);
 	free(hashes);
 	free(hashes_as_strings);
+	m5_host_process();
 	return(0);
 	//
 }
