@@ -2,8 +2,8 @@
 #All directories accessed are wrt gem5 home directory
 echo "Script executing..."
 
-echo "Enter 0 to rebuild gem5, 1 to continue with the script (no gem5 build)..."
-read b
+# echo "Enter 0 to rebuild gem5, 1 to continue with the script (no gem5 build)..."
+# read b
 #if [ "${b}" -eq 0 ]; then 
 #	echo "Building gem5..."
 #	python `which scons` ./build/X86/gem5.opt
@@ -34,20 +34,21 @@ l2_size=4MB
 #Executing merkle tree with 3 different configurations
 echo "========================DDR, $blocksize"
 g++ -o merkle_ddr -static -O0 -lm ./workload/merkle/merkle_ddr.c ./workload/merkle/helper.c ./workload/merkle/sha256.c -I ./include/ ./util/m5/src/x86/m5op.S
-build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=DDR3_1600_8x8 -c merkle_ddr -o "./workload/merkle/input_gen.txt $blocksize"
+build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=DDR3_1600_8x8 -c merkle_ddr -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_ddr.txt
 mv ./m5out/stats.txt ./m5out/merkle_ddr.txt
 
 echo "=========================HMC, $blocksize"
 g++ -o merkle_hmc -static -O0 -lm ./workload/merkle/merkle_hmc.c ./workload/merkle/helper.c ./workload/merkle/sha256.c -I ./include/ ./util/m5/src/x86/m5op.S
-build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=HMC_2500_1x32 -c merkle_hmc -o "./workload/merkle/input_gen.txt $blocksize"
+build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=HMC_2500_1x32 -c merkle_hmc -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_hmc.txt
 mv ./m5out/stats.txt ./m5out/merkle_hmc.txt
 
 echo "==========================HMC + PIM, $blocksize"
 g++ -o merkle_pim -static -O0 -lm ./workload/merkle/merkle_pim.c ./workload/merkle/helper.c ./workload/merkle/sha256.c -I ./include/ ./util/m5/src/x86/m5op.S
-build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --num-pim-processors=1 --mem-type=HMC_2500_1x32 -c merkle_pim -o "./workload/merkle/input_gen.txt $blocksize"
+build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --num-pim-processors=1 --mem-type=HMC_2500_1x32 -c merkle_pim -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_pim.txt
 mv ./m5out/stats.txt ./m5out/merkle_pim.txt
 
 #Generating a stats comparison file
 #./m5out/input_attr.txt has a list of attributes to be compared, new attributes can be added or removed
 python3 ./workload/merkle/StatsComparison.py --file-path="./m5out/merkle_ddr.txt;./m5out/merkle_hmc.txt;./m5out/merkle_pim.txt" --output-path="./m5out/output_comparison.txt" --attr-path="./workload/merkle/input_attr.txt"
 echo "Comparison file can be found at ./m5out/ named as output_comparison.txt"
+echo "Output logs can be found at ./m5out/"
