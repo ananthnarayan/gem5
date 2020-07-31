@@ -28,23 +28,23 @@ blocksizes=( 1024 1048576 2096952 268435456 536870912 )
 l=${#blocksizes[@]}
 echo "Starting simulations"
 blocksize=4194304 
-gem5=gem5.debug
+gem5=gem5.opt
 cachesize=64kB
 l2_size=4MB
 #Executing merkle tree with 3 different configurations
 echo "========================DDR, $blocksize"
 g++ -o merkle_ddr -static -O0 -lm ./workload/merkle/merkle_ddr.c ./workload/merkle/helper.c ./workload/merkle/sha256.c -I ./include/ ./util/m5/src/x86/m5op.S
-build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=DDR3_1600_8x8 -c merkle_ddr -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_ddr.txt
+build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=DDR3_1600_8x8 -c merkle_ddr -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_ddr.txt 2>./m5out/errlog_ddr.txt
 mv ./m5out/stats.txt ./m5out/merkle_ddr.txt
 
 echo "=========================HMC, $blocksize"
 g++ -o merkle_hmc -static -O0 -lm ./workload/merkle/merkle_hmc.c ./workload/merkle/helper.c ./workload/merkle/sha256.c -I ./include/ ./util/m5/src/x86/m5op.S
-build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=HMC_2500_1x32 -c merkle_hmc -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_hmc.txt
+build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --mem-type=HMC_2500_1x32 -c merkle_hmc -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_hmc.txt 2>./m5out/errlog_hmc.txt
 mv ./m5out/stats.txt ./m5out/merkle_hmc.txt
 
 echo "==========================HMC + PIM, $blocksize"
 g++ -o merkle_pim -static -O0 -lm ./workload/merkle/merkle_pim.c ./workload/merkle/helper.c ./workload/merkle/sha256.c -I ./include/ ./util/m5/src/x86/m5op.S
-build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --num-pim-processors=1 --mem-type=HMC_2500_1x32 -c merkle_pim -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_pim.txt
+build/X86/$gem5  configs/example/se.py --cpu-type=TimingSimpleCPU --cpu-clock=1GHz --caches --l2cache --l1d_size=$cachesize --l1i_size=$cachesize --l2_size=$l2_size --l1d_assoc=4 --l1i_assoc=4 --l2_assoc=8 --mem-size=512MB --coherence-granularity=64B --num-host-cpus=1 --num-pim-processors=1 --mem-type=HMC_2500_1x32 -c merkle_pim -o "./workload/merkle/input_gen.txt $blocksize" > ./m5out/outputlog_pim.txt 2>./m5out/errlog_pim.txt
 mv ./m5out/stats.txt ./m5out/merkle_pim.txt
 
 #Generating a stats comparison file
