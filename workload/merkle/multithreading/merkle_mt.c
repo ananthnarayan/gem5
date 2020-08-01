@@ -52,10 +52,12 @@ void* thread_function(void* arg)
         //lock the file access mutex
         pthread_mutex_lock(me->file_access_mutex);
         int my_block_number = block_number;
-        if(!feof(me->file))
+        if(feof(me->file))
         {
-            bytes_read = fread((void*)text, sizeof(BYTE), (size_t)block_size, me->file);
+            pthread_mutex_unlock(me->file_access_mutex);
+            pthread_exit(0);
         }
+         bytes_read = fread((void*)text, sizeof(BYTE), (size_t)block_size, me->file);
         fprintf(stdout, "%s:%d Thread id: %d ; Thread number: %u Block number: %d \n",__FILE__, __LINE__, 
             me->thread_id, me->thread_number, block_number);
         block_number = block_number + 1; 
@@ -77,7 +79,7 @@ void* thread_function(void* arg)
         //lock the hashes mutex
         pthread_mutex_lock(me->hashes_mutex);
         sha256_final(&ctx, hash);
-        memcpy(hashes[block_number], hash, SHA256_BLOCK_SIZE);
+        memcpy(hashes[my_block_number], hash, SHA256_BLOCK_SIZE);
         pthread_mutex_unlock(me->hashes_mutex);
         //as_string(hashes[my_block_number], hashes_as_strings[my_block_number], LENGTH_HASH_AS_STRING);
         //unlock the hashes mutex
