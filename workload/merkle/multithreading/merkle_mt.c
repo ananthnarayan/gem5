@@ -90,7 +90,6 @@ void* thread_function(void* arg)
 	pthread_exit(0);
 }
 
-//#define LENGTH_HASH_AS_STRING (SHA256_BLOCK_SIZE * 2 + 1)  
 #define MAX_THREADS 32
 int main(int argc, char **argv)
 {
@@ -148,7 +147,6 @@ int main(int argc, char **argv)
 		
 		hashes_as_strings[j] = (char*) malloc(sizeof(char) * LENGTH_HASH_AS_STRING);
 		memset((void*)hashes_as_strings[j], 0, sizeof(char) * LENGTH_HASH_AS_STRING);
-		//fprintf(stderr, "Allocated: %d H:%p  SH:%p\n", j, hashes[j], hashes_as_strings[j]);
 	}	
 	block_number = 0;
     pthread_mutex_init(&file_access_mutex, NULL);
@@ -163,15 +161,11 @@ int main(int argc, char **argv)
             tid = pthread_create(&(threads[i]), NULL, thread_function, &(thread_args[i]));
             if(tid != 0 )
             {
-                //error creating thread. 
                 threads[i]  = -1;
                 thread_args[i].thread_id = -1;
             }
             else
-                thread_args[i].thread_id = threads[i];
-
-            //the thread will do a pthread_self to set the thread_id
-           
+                thread_args[i].thread_id = threads[i];           
     }
 
 	for(int i = 0;i < MAX_THREADS; i++) {
