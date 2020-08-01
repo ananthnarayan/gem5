@@ -22,7 +22,7 @@ unsigned int file_size;
 BYTE **hashes;
 struct ThreadParams
 {
-	int thread_id;
+	unsigned int thread_id;
 	unsigned int thread_number;
     FILE* file;
     pthread_mutex_t *file_access_mutex;
@@ -42,8 +42,8 @@ void* thread_function(void* arg)
     
     tparams *me = (tparams*)arg;
     text = (BYTE*) malloc(sizeof(BYTE) * block_size + 1);
-    me->thread_id = pthread_self();
-    fprintf(stdout, "%f:%d Thread id: %d ; Thread number: %d \n",__FILE__, __LINE__, 
+   // me->thread_id = pthread_self();
+    fprintf(stdout, "%s:%d Thread id: %d ; Thread number: %d \n",__FILE__, __LINE__, 
             me->thread_id, me->thread_number);
     while(!feof(me->file))
     {
@@ -56,13 +56,19 @@ void* thread_function(void* arg)
         {
             bytes_read = fread((void*)text, sizeof(BYTE), (size_t)block_size, me->file);
         }
-        fprintf(stdout, "%f:%d Thread id: %d ; Thread number: %d Block number: %d \n",__FILE__, __LINE__, 
+        fprintf(stdout, "%s:%d Thread id: %d ; Thread number: %u Block number: %d \n",__FILE__, __LINE__, 
             me->thread_id, me->thread_number, block_number);
         block_number = block_number + 1; 
         //the next thread that does the file processing must use this block number as an index
         //into the hashes array.
         //unlock the file access mutex
         pthread_mutex_unlock(me->file_access_mutex);
+        if(my_block_number > num_blocks)
+        {
+            fprintf(stderr, "Block number is > num blocks");
+            free(text);
+            pthread_exit(0);
+        }
         text[bytes_read] = '\0';
         sha256_init(&ctx);
         sha256_update(&ctx, text, bytes_read);
@@ -70,18 +76,19 @@ void* thread_function(void* arg)
         //print_hash(hashes[i]);
         //lock the hashes mutex
         pthread_mutex_lock(me->hashes_mutex);
-        sha256_final(&ctx, hashes[block_number]);
+        sha256_final(&ctx, hash);
+        memcpy(hashes[block_number], hash, SHA256_BLOCK_SIZE);
         pthread_mutex_unlock(me->hashes_mutex);
         //as_string(hashes[my_block_number], hashes_as_strings[my_block_number], LENGTH_HASH_AS_STRING);
         //unlock the hashes mutex
     }
     free(text);
-    fprintf(stdout, "%f:%d Thread id: %d ; Thread number: %d Exit\n",__FILE__, __LINE__, 
+    fprintf(stdout, "%s:%d Thread id: %u ; Thread number: %d Exit\n",__FILE__, __LINE__, 
             me->thread_id, me->thread_number);
 	pthread_exit(0);
 }
 
-#define LENGTH_HASH_AS_STRING (SHA256_BLOCK_SIZE * 2 + 1)  
+//#define LENGTH_HASH_AS_STRING (SHA256_BLOCK_SIZE * 2 + 1)  
 #define MAX_THREADS 32
 int main(int argc, char **argv)
 {
@@ -120,7 +127,7 @@ int main(int argc, char **argv)
 	}
 	file_size = statbuf.st_size;
 	num_blocks = (unsigned int) ceil((file_size * 1.0)/block_size);
-    file = fopen(filename, "r");
+	file = fopen(filename, "r");
 	if(file == NULL)
 	{
 		perror("Error reading file");
@@ -142,7 +149,8 @@ int main(int argc, char **argv)
 		//fprintf(stderr, "Allocated: %d H:%p  SH:%p\n", j, hashes[j], hashes_as_strings[j]);
 	}	
 	block_number = 0;
-    //TODO: initialize the mutexes
+    pthread_mutex_init(&file_access_mutex, NULL);
+    pthread_mutex_init(&hashes_mutex, NULL);
     for(int i = 0; i < MAX_THREADS; i++)
     {
             int tid;
@@ -157,6 +165,9 @@ int main(int argc, char **argv)
                 threads[i]  = -1;
                 thread_args[i].thread_id = -1;
             }
+            else
+                thread_args[i].thread_id = threads[i];
+
             //the thread will do a pthread_self to set the thread_id
            
     }
@@ -164,6 +175,7 @@ int main(int argc, char **argv)
 	for(int i = 0;i < MAX_THREADS; i++) {
 		pthread_join(threads[i], NULL);
 	}
+	fprintf(stdout, "%s %d Join done. Calculating top level merkle hash\n", __FILE__, __LINE__);
 	for(int i = 0; i < num_blocks;  i++)
         as_string(hashes[i], hashes_as_strings[i], LENGTH_HASH_AS_STRING);   
 	unsigned int num_hashes_to_process = num_blocks;

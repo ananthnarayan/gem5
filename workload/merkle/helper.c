@@ -3,7 +3,6 @@
 #include "sha256.h"
 #include "merkle.h"
 
-#define LENGTH_HASH_AS_STRING (SHA256_BLOCK_SIZE * 2 + 1)
 
 void print_hash(BYTE* hashes)
 {
