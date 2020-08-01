@@ -164,8 +164,22 @@ int main(int argc, char **argv)
 	for(int i = 0;i < MAX_THREADS; i++) {
 		pthread_join(threads[i], NULL);
 	}
-   //as_string(hashes[my_block_number], hashes_as_strings[my_block_number], LENGTH_HASH_AS_STRING);
-   //void run_merkle(int num_hashes_to_process, char **hashes_as_strings)
+	for(int i = 0; i < num_blocks;  i++)
+        as_string(hashes[i], hashes_as_strings[i], LENGTH_HASH_AS_STRING);   
+	unsigned int num_hashes_to_process = num_blocks;
+	fprintf(stderr, "invoking run_merkle\n");
+	run_merkle(num_hashes_to_process, hashes_as_strings);
+	fprintf(stdout, "Blocks %d\n", num_blocks);
+	fprintf(stdout, "Final hash: %s\n", hashes_as_strings[0]);
+	// m5_host_process();
+	for(int j = 0; j < num_blocks; j++)
+	{
+		//fprintf(stderr, "Freeing hashes pointer (%d): %p %p\n", j, hashes[j], hashes_as_strings[j]);
+		free(hashes[j]);
+		free(hashes_as_strings[j]);
+	}
+	free(hashes);
+	free(hashes_as_strings);
     fclose(file);
 	return 0;
 }
