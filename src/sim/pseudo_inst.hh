@@ -116,10 +116,10 @@ void dumpresetstats(ThreadContext *tc, Tick delay, Tick period);
 void m5checkpoint(ThreadContext *tc, Tick delay, Tick period);
 void debugbreak(ThreadContext *tc);
 void switchcpu(ThreadContext *tc);
-void pim_process(ThreadContext *tc, uint64_t pim_id);
+void pim_process(ThreadContext *tc, uint64_t p_id);
 void cpu_print(ThreadContext *tc);
 void host_process(ThreadContext *tc);
-
+uint64_t get_pim_id(ThreadContext *tc);
 void workbegin(ThreadContext *tc, uint64_t workid, uint64_t threadid);
 void workend(ThreadContext *tc, uint64_t workid, uint64_t threadid);
 void m5Syscall(ThreadContext *tc);
@@ -238,7 +238,9 @@ pseudoInst(ThreadContext *tc, uint8_t func, uint64_t &result)
         invokeSimcall<ABI>(tc, workend);
         return true;
 
-      case M5OP_RESERVED1:
+      case get_pim_id_func:
+        invokeSimcall<ABI>(tc, get_pim_id);
+        return true;
       //case M5OP_RESERVED2:
       case pim_process_func:
       	invokeSimcall<ABI>(tc, pim_process);

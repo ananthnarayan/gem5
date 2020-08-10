@@ -65,6 +65,9 @@ system.cpu.icache_port = system.membus.slave
 system.cpu.dcache_port = system.membus.slave
 # create the interrupt controller for the CPU and connect to the membus
 system.cpu.createInterruptController()
+system.cpu.interrupts[0].pio = system.membus.master
+system.cpu.interrupts[0].int_master = system.membus.slave
+system.cpu.interrupts[0].int_slave = system.membus.master
 # connect special port in the system to the membus. This port is a
 # functional-only port to allow the system to read and write memory.
 system.system_port = system.membus.slave

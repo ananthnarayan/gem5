@@ -129,7 +129,7 @@ class Port
     {
         assert(old);
         assert(old->isConnected());
-        assert(!isConnected());
+        //assert(!isConnected());
         Port &peer = old->getPeer();
         assert(peer.isConnected());
 

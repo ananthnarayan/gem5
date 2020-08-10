@@ -273,7 +273,7 @@ X86ISA::Interrupts::requestInterrupt(uint8_t vector,
 void
 X86ISA::Interrupts::setCPU(BaseCPU * newCPU)
 {
-    assert(newCPU);
+    //assert(newCPU);
     if (cpu != NULL && cpu->cpuId() != newCPU->cpuId()) {
         panic("Local APICs can't be moved between CPUs"
                 " with different IDs.\n");
@@ -343,7 +343,7 @@ X86ISA::Interrupts::completeIPI(PacketPtr pkt)
 AddrRangeList
 X86ISA::Interrupts::getAddrRanges() const
 {
-    assert(cpu);
+    //assert(cpu);
     AddrRangeList ranges;
     ranges.push_back(RangeSize(pioAddr, PageBytes));
     return ranges;

@@ -318,6 +318,11 @@ def config_hmc_host_ctrl(opt, system):
         system.membus.response_latency = 2
         cd = SrcClockDomain(clock=clk, voltage_domain=vd)
         system.membus.clk_domain = cd
+        system.pim_bus = [CoherentXBar(width=128,
+                          frontend_latency=1,
+                          forward_latency=0,
+                          response_latency=1,
+                        snoop_response_latency=1)]
 
     # create memory ranges for the serial links
     slar = convert.toMemorySize(opt.serial_link_addr_range)
@@ -416,7 +421,6 @@ def config_hmc_dev(opt, system, hmc_host):
                           response_latency=opt.xbar_response_latency) for i in
           range(opt.number_mem_crossbar)]
     system.hmc_dev.xbar = xb
-
     for i in range(opt.number_mem_crossbar):
         clk = opt.xbar_frequency
         vd = VoltageDomain(voltage='1V')

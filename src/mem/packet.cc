@@ -98,7 +98,7 @@ MemCmd::commandInfo[] =
        below without evicting its copy. */
     { SET4(IsWrite, IsRequest, HasData, FromCache), InvalidCmd, "WriteClean" },
     /* CleanEvict */
-    { SET3(IsRequest, IsEviction, FromCache), InvalidCmd, "CleanEvict" },
+    { SET4(IsWrite, IsRequest, IsEviction, FromCache), InvalidCmd, "CleanEvict" },
     /* SoftPFReq */
     { SET4(IsRead, IsRequest, IsSWPrefetch, NeedsResponse),
             SoftPFResp, "SoftPFReq" },

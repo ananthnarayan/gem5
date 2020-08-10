@@ -275,9 +275,9 @@ SerialLink::SerialLinkMasterPort::trySendTiming()
 
     PacketPtr pkt = req.pkt;
 
-    DPRINTF(SerialLink, "trySend request addr 0x%x, queue size %d\n",
-            pkt->getAddr(), transmitList.size());
-
+    DPRINTF(SerialLink, "this is from me trySend request addr 0x%x, queue size %d, the string command is %s\n",
+            pkt->getAddr(), transmitList.size(), pkt->cmdString());
+    
     if (sendTimingReq(pkt)) {
         // send successful
         transmitList.pop_front();

@@ -154,11 +154,9 @@ class BaseCPU : public ClockedObject
      *
      * @return a reference to the data port
      */
-    
-    /** Host core ID fore reference (from which the control was transferred) */
+    //int _cpuId;
     int host_id;
-    /** PIM core ID for reference (Used only for PIM cores*/
-    int pim_id; 
+    int p_id;
     virtual Port &getDataPort() = 0;
 
     /**
@@ -622,15 +620,16 @@ class BaseCPU : public ClockedObject
 
     Cycles syscallRetryLatency;
 
-    virtual void PIM(ThreadContext *tc, uint64_t pim_id){
+    virtual void PIM(ThreadContext *tc, uint64_t p_id){
         fatal("Base CPU cannot process PIM.");
     };
 
     virtual void HOST(ThreadContext *tc){
         fatal("PIM CPU cannot process Base CPU.");
     };
-
-
+    virtual uint64_t get_pim(ThreadContext *tc){
+        fatal("PIM CPU Id cannot br tgrsdzx.");
+    };
   // Enables CPU to enter power gating on a configurable cycle count
   protected:
     void enterPwrGating();

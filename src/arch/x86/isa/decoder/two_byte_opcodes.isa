@@ -205,8 +205,9 @@
                         panic("M5 panic instruction called at pc = %#x.\n",
                               RIP);
                     }}, IsNonSpeculative);
-                    0x55: m5reserved1({{
-                        warn("M5 reserved opcode 1 ignored.\n");
+                    0x55: get_pim_id({{
+                        Rax = PseudoInst::get_pim_id(
+                            xc->tcBase());
                     }}, IsNonSpeculative);
                     0x56: pim_process({{
 			            PseudoInst::pim_process(xc->tcBase(),Rdi);

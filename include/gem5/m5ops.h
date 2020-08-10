@@ -68,6 +68,7 @@ void m5_se_page_fault();
 void m5_pim_process(uint64_t p_id);
 void m5_cpu_print();
 void m5_host_process();
+uint64_t m5_get_pim_id();
 
 #ifdef __cplusplus
 }

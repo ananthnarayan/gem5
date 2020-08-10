@@ -1,0 +1,856 @@
+# Copyright (c) 2012-2013 ARM Limited
+# All rights reserved.
+#
+# The license below extends only to copyright in the software and shall
+# not be construed as granting a license to any other intellectual
+# property including but not limited to intellectual property relating
+# to a hardware implementation of the functionality of the software
+# licensed hereunder.  You may use the software subject to the license
+# terms below provided that you ensure that this notice is replicated
+# unmodified and in its entirety in all distributions of the software,
+# modified or unmodified, in source code or in binary form.
+#
+# Copyright (c) 2015 The University of Bologna
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met: redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer;
+# redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution;
+# neither the name of the copyright holders nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# A Simplified model of a complete HMC device. Based on:
+#  [1] http://www.hybridmemorycube.org/specification-download/
+#  [2] High performance AXI-4.0 based interconnect for extensible smart memory
+#      cubes(E. Azarkhish et. al)
+#  [3] Low-Power Hybrid Memory Cubes With Link Power Management and Two-Level
+#      Prefetching (J. Ahn et. al)
+#  [4] Memory-centric system interconnect design with Hybrid Memory Cubes
+#      (G. Kim et. al)
+#  [5] Near Data Processing, Are we there yet? (M. Gokhale)
+#      http://www.cs.utah.edu/wondp/gokhale.pdf
+#  [6] openHMC - A Configurable Open-Source Hybrid Memory Cube Controller
+#      (J. Schmidt)
+#  [7] Hybrid Memory Cube performance characterization on data-centric
+#      workloads (M. Gokhale)
+#
+# This script builds a complete HMC device composed of vault controllers,
+# serial links, the main internal crossbar, and an external hmc controller.
+#
+# - VAULT CONTROLLERS:
+#   Instances of the HMC_2500_1x32 class with their functionality specified in
+#   dram_ctrl.cc
+#
+# - THE MAIN XBAR:
+#   This component is simply an instance of the NoncoherentXBar class, and its
+#   parameters are tuned to [2].
+#
+# - SERIAL LINKS CONTROLLER:
+#   SerialLink is a simple variation of the Bridge class, with the ability to
+#   account for the latency of packet serialization and controller latency. We
+#   assume that the serializer component at the transmitter side does not need
+#   to receive the whole packet to start the serialization. But the
+#   deserializer waits for the complete packet to check its integrity first.
+#
+#   * Bandwidth of the serial links is not modeled in the SerialLink component
+#     itself.
+#
+#   * Latency of serial link controller is composed of SerDes latency + link
+#     controller
+#
+#   * It is inferred from the standard [1] and the literature [3] that serial
+#     links share the same address range and packets can travel over any of
+#     them so a load distribution mechanism is required among them.
+#
+#   -----------------------------------------
+#   | Host/HMC Controller                   |
+#   |        ----------------------         |
+#   |        |  Link Aggregator   |  opt    |
+#   |        ----------------------         |
+#   |        ----------------------         |
+#   |        |  Serial Link + Ser | * 4     |
+#   |        ----------------------         |
+#   |---------------------------------------
+#   -----------------------------------------
+#   | Device
+#   |        ----------------------         |
+#   |        |       Xbar         | * 4     |
+#   |        ----------------------         |
+#   |        ----------------------         |
+#   |        |  Vault Controller  | * 16    |
+#   |        ----------------------         |
+#   |        ----------------------         |
+#   |        |     Memory         |         |
+#   |        ----------------------         |
+#   |---------------------------------------|
+#
+#   In this version we have present 3 different HMC archiecture along with
+#   alongwith their corresponding test script.
+#
+#   same: It has 4 crossbars in HMC memory. All the crossbars are connected
+#   to each other, providing complete memory range. This archicture also covers
+#   the added latency for sending a request to non-local vault(bridge in b/t
+#   crossbars). All the 4 serial links can access complete memory. So each
+#   link can be connected to separate processor.
+#
+#   distributed: It has 4 crossbars inside the HMC. Crossbars are not
+#   connected.Through each crossbar only local vaults can be accessed. But to
+#   support this architecture we need a crossbar between serial links and
+#   processor.
+#
+#   mixed: This is a hybrid architecture. It has 4 crossbars inside the HMC.
+#   2 Crossbars are connected to only local vaults. From other 2 crossbar, a
+#   request can be forwarded to any other vault.
+
+from __future__ import print_function
+from __future__ import absolute_import
+
+import argparse
+
+import m5
+from m5.objects import *
+from m5.util import *
+from m5.defines import buildEnv
+
+from common.Benchmarks import *
+from common import ObjectList
+
+def _listCpuTypes(option, opt, value, parser):
+    ObjectList.cpu_list.print()
+    sys.exit(0)
+
+def _listBPTypes(option, opt, value, parser):
+    ObjectList.bp_list.print()
+    sys.exit(0)
+
+def _listHWPTypes(option, opt, value, parser):
+    ObjectList.hwp_list.print()
+    sys.exit(0)
+
+def _listIndirectBPTypes(option, opt, value, parser):
+    ObjectList.indirect_bp_list.print()
+    sys.exit(0)
+
+def _listMemTypes(option, opt, value, parser):
+    ObjectList.mem_list.print()
+    sys.exit(0)
+
+def _listPlatformTypes(option, opt, value, parser):
+    ObjectList.platform_list.print()
+    sys.exit(0)
+
+def add_options(parser):
+    # *****************************CROSSBAR PARAMETERS*************************
+    # Flit size of the main interconnect [1]
+    parser.add_argument("--xbar-width", default=32, action="store", type=int,
+                        help="Data width of the main XBar (Bytes)")
+
+    # Clock frequency of the main interconnect [1]
+    # This crossbar, is placed on the logic-based of the HMC and it has its
+    # own voltage and clock domains, different from the DRAM dies or from the
+    # host.
+    parser.add_argument("--xbar-frequency", default='1GHz', type=str,
+                        help="Clock Frequency of the main XBar")
+
+    # Arbitration latency of the HMC XBar [1]
+    parser.add_argument("--xbar-frontend-latency", default=1, action="store",
+                        type=int, help="Arbitration latency of the XBar")
+
+    # Latency to forward a packet via the interconnect [1](two levels of FIFOs
+    # at the input and output of the inteconnect)
+    parser.add_argument("--xbar-forward-latency", default=2, action="store",
+                        type=int, help="Forward latency of the XBar")
+
+    # Latency to forward a response via the interconnect [1](two levels of
+    # FIFOs at the input and output of the inteconnect)
+    parser.add_argument("--xbar-response-latency", default=2, action="store",
+                        type=int, help="Response latency of the XBar")
+
+    # number of cross which connects 16 Vaults to serial link[7]
+    parser.add_argument("--number-mem-crossbar", default=4, action="store",
+                        type=int, help="Number of crossbar in HMC")
+
+    # *****************************SERIAL LINK PARAMETERS**********************
+    # Number of serial links controllers [1]
+    parser.add_argument("--num-links-controllers", default=4, action="store",
+                        type=int, help="Number of serial links")
+
+    # Number of packets (not flits) to store at the request side of the serial
+    #  link. This number should be adjusted to achive required bandwidth
+    parser.add_argument("--link-buffer-size-req", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        request side of the serial link")
+
+    # Number of packets (not flits) to store at the response side of the serial
+    #  link. This number should be adjusted to achive required bandwidth
+    parser.add_argument("--link-buffer-size-rsp", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        response side of the serial link")
+
+    # Latency of the serial link composed by SER/DES latency (1.6ns [4]) plus
+    # the PCB trace latency (3ns Estimated based on [5])
+    parser.add_argument("--link-latency", default='4.6ns', type=str,
+                        help="Latency of the serial links")
+
+    # Clock frequency of the each serial link(SerDes) [1]
+    parser.add_argument("--link-frequency", default='10GHz', type=str,
+                        help="Clock Frequency of the serial links")
+
+    # Clock frequency of serial link Controller[6]
+    # clk_hmc[Mhz]= num_lanes_per_link * lane_speed [Gbits/s] /
+    # data_path_width * 10^6
+    # clk_hmc[Mhz]= 16 * 10 Gbps / 256 * 10^6 = 625 Mhz
+    parser.add_argument("--link-controller-frequency", default='625MHz',
+                        type=str, help="Clock Frequency of the link\
+                        controller")
+
+    # Latency of the serial link controller to process the packets[1][6]
+    # (ClockDomain = 625 Mhz )
+    # used here for calculations only
+    parser.add_argument("--link-ctrl-latency", default=4, action="store",
+                        type=int, help="The number of cycles required for the\
+                        controller to process the packet")
+
+    # total_ctrl_latency = link_ctrl_latency + link_latency
+    # total_ctrl_latency = 4(Cycles) * 1.6 ns +  4.6 ns
+    parser.add_argument("--total-ctrl-latency", default='11ns', type=str,
+                        help="The latency experienced by every packet\
+                        regardless of size of packet")
+
+    # Number of parallel lanes in each serial link [1]
+    parser.add_argument("--num-lanes-per-link", default=16, action="store",
+                        type=int, help="Number of lanes per each link")
+
+    # Number of serial links [1]
+    parser.add_argument("--num-serial-links", default=4, action="store",
+                        type=int, help="Number of serial links")
+
+    # speed of each lane of serial link - SerDes serial interface 10 Gb/s
+    parser.add_argument("--serial-link-speed", default=10, action="store",
+                        type=int, help="Gbs/s speed of each lane of serial\
+                        link")
+
+    # address range for each of the serial links
+    parser.add_argument("--serial-link-addr-range", default='1GB', type=str,
+                        help="memory range for each of the serial links.\
+                        Default: 1GB")
+
+    # *****************************PERFORMANCE MONITORING*********************
+    # The main monitor behind the HMC Controller
+    parser.add_argument("--enable-global-monitor", action="store_true",
+                        help="The main monitor behind the HMC Controller")
+
+    # The link performance monitors
+    parser.add_argument("--enable-link-monitor", action="store_true",
+                        help="The link monitors")
+
+    # link aggregator enable - put a cross between buffers & links
+    parser.add_argument("--enable-link-aggr", action="store_true", help="The\
+                        crossbar between port and Link Controller")
+
+    parser.add_argument("--enable-buff-div", action="store_true",
+                        help="Memory Range of Buffer is ivided between total\
+                        range")
+
+    # *****************************HMC ARCHITECTURE **************************
+    # Memory chunk for 16 vault - numbers of vault / number of crossbars
+    parser.add_argument("--mem-chunk", default=4, action="store", type=int,
+                        help="Chunk of memory range for each cross bar in\
+                        arch 0")
+
+    # size of req buffer within crossbar, used for modelling extra latency
+    # when the reuqest go to non-local vault
+    parser.add_argument("--xbar-buffer-size-req", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        request side of the crossbar")
+
+    # size of response buffer within crossbar, used for modelling extra latency
+    # when the response received from non-local vault
+    parser.add_argument("--xbar-buffer-size-resp", default=10, action="store",
+                        type=int, help="Number of packets to buffer at the\
+                        response side of the crossbar")
+    # HMC device architecture. It affects the HMC host controller as well
+    parser.add_argument("--arch", type=str, choices=["same", "distributed",
+                        "mixed"], default="distributed", help="same: HMC with\
+                        4 links, all with same range.\ndistributed: HMC with\
+                        4 links with distributed range.\nmixed: mixed with\
+                        same and distributed range.\nDefault: distributed")
+    # HMC device - number of vaults
+    parser.add_argument("--hmc-dev-num-vaults", default=16, action="store",
+                        type=int, help="number of independent vaults within\
+                        the HMC device. Note: each vault has a memory\
+                        controller (valut controller)\nDefault: 16")
+    # HMC device - vault capacity or size
+    parser.add_argument("--hmc-dev-vault-size", default='256MB', type=str,
+                        help="vault storage capacity in bytes. Default:\
+                        256MB")
+    parser.add_argument("--mem-type", type=str, choices=["HMC_2500_1x32","DDR3_1600_8x8"],
+                        default="HMC_2500_1x32", help="type of HMC memory to\
+                        use. Default: HMC_2500_1x32")
+    parser.add_argument("--mem-channels", default=1, action="store", type=int,
+                        help="Number of memory channels")
+    parser.add_argument("--mem-ranks", default=1, action="store", type=int,
+                        help="Number of ranks to iterate across")
+    parser.add_argument("--burst-length", default=256, action="store",
+                        type=int, help="burst length in bytes. Note: the\
+                        cache line size will be set to this value.\nDefault:\
+                        256")
+    parser.add_argument("-c", "--cmd", default="",
+                      help="The binary to run in syscall emulation mode.")
+
+    #FS arguments
+    from common.FSConfig import os_types
+
+    # Simulation arguments
+    parser.add_argument("--timesync", action="store_true",
+            help="Prevent simulated time from getting ahead of real time")
+
+    # System arguments
+    parser.add_argument("--kernel", action="store", type=str)
+    parser.add_argument("--os-type", action="store", type=str,
+                      choices=os_types[str(buildEnv['TARGET_ISA'])],
+                      default="linux",
+                      help="Specifies type of OS to boot")
+    parser.add_argument("--script", action="store", type=str)
+    parser.add_argument("--frame-capture", action="store_true",
+            help="Stores changed frame buffers from the VNC server to compressed "\
+            "files in the gem5 output directory")
+
+    if buildEnv['TARGET_ISA'] == "arm":
+        parser.add_argument("--bare-metal", action="store_true",
+                   help="Provide the raw system without the linux specific bits")
+        parser.add_argument("--list-machine-types",
+                          action="callback", callback=_listPlatformTypes,
+                      help="List available platform types")
+        parser.add_argument("--machine-type", action="store", type="choice",
+                choices=ObjectList.platform_list.get_names(),
+                default="VExpress_GEM5_V1")
+        parser.add_argument("--dtb-filename", action="store", type=str,
+              help="Specifies device tree blob file to use with device-tree-"\
+              "enabled kernels")
+        parser.add_argument("--enable-security-extensions", action="store_true",
+              help="Turn on the ARM Security Extensions")
+        parser.add_argument("--enable-context-switch-stats-dump", \
+                action="store_true", help="Enable stats dump at context "\
+                "switches and dump tasks file (required for Streamline)")
+        parser.add_argument("--vio-9p", action="store_true", help=vio_9p_help)
+        parser.add_argument("--bootloader", action='append',
+                help="executable file that runs before the --kernel")
+
+    # Benchmark options
+    parser.add_argument("--dual", action="store_true",
+                      help="Simulate two systems attached with an ethernet link")
+    parser.add_argument("-b", "--benchmark", action="store", type=str,
+                      dest="benchmark",
+                      help="Specify the benchmark to run. Available benchmarks: %s"\
+                      % DefinedBenchmarks)
+
+    # Metafile options
+    parser.add_argument("--etherdump", action="store", type=str, dest="etherdump",
+                      help="Specify the filename to dump a pcap capture of the" \
+                      "ethernet traffic")
+
+    # Disk Image arguments
+    parser.add_argument("--disk-image", action="append", type=str,
+            default=[], help="Path to the disk images to use.")
+    parser.add_argument("--root-device", action="store", type=str,
+            default=None, help="OS device name for root partition")
+
+    # Command line arguments
+    parser.add_argument("--command-line", action="store", type=str,
+                      default=None,
+                      help="Template for the kernel command line.")
+    parser.add_argument("--command-line-file", action="store",
+                      default=None, type=str,
+                      help="File with a template for the kernel command line")
+
+    parser.add_argument("-n", "--num-cpus", type=int, default=1)
+    parser.add_argument("--sys-voltage", action="store", type=str,
+                      default='1.0V',
+                      help = """Top-level voltage for blocks running at system
+                      power supply""")
+    parser.add_argument("--sys-clock", action="store", type=str,
+                      default='1GHz',
+                      help = """Top-level clock for blocks running at system
+                      speed""")
+
+    # Memory arguments
+    # parser.add_argument("--list-mem-types",
+    #                   action="callback", callback=_listMemTypes,
+    #                   help="List available memory types")
+    # parser.add_argument("--mem-type", type="choice", default="DDR3_1600_8x8",
+    #                   choices=[""],
+    #                   help = "type of memory to use")
+    # parser.add_argument("--mem-channels", type=int, default=1,
+    #                   help = "number of memory channels")
+    # parser.add_argument("--mem-ranks", type=int, default=None,
+    #                   help = "number of memory ranks per channel")
+    parser.add_argument("--mem-size", action="store", type=str,
+                      default="512MB",
+                      help="Specify the physical memory size (single memory)")
+    parser.add_argument("--enable-dram-powerdown", action="store_true",
+                       help="Enable low-power states in DRAMCtrl")
+    parser.add_argument("--mem-channels-intlv", type=int, default=0,
+                      help="Memory channels interleave")
+
+
+    parser.add_argument("--memchecker", action="store_true")
+
+    # Cache arguments
+    parser.add_argument("--external-memory-system", type=str,
+                      help="use external ports of this port_type for caches")
+    parser.add_argument("--tlm-memory", type=str,
+                      help="use external port for SystemC TLM cosimulation")
+    parser.add_argument("--caches", action="store_true")
+    parser.add_argument("--l2cache", action="store_true")
+    parser.add_argument("--num-dirs", type=int, default=1)
+    parser.add_argument("--num-l2caches", type=int, default=1)
+    parser.add_argument("--num-l3caches", type=int, default=1)
+    parser.add_argument("--l1d_size", type=str, default="64kB")
+    parser.add_argument("--l1i_size", type=str, default="32kB")
+    parser.add_argument("--l2_size", type=str, default="2MB")
+    parser.add_argument("--l3_size", type=str, default="16MB")
+    parser.add_argument("--l1d_assoc", type=int, default=2)
+    parser.add_argument("--l1i_assoc", type=int, default=2)
+    parser.add_argument("--l2_assoc", type=int, default=8)
+    parser.add_argument("--l3_assoc", type=int, default=16)
+    parser.add_argument("--cacheline_size", type=int, default=64)
+
+    # Enable Ruby
+    parser.add_argument("--ruby", action="store_true")
+
+    # Run duration arguments
+    parser.add_argument("-m", "--abs-max-tick", type=int, default=m5.MaxTick,
+                      metavar="TICKS", help="Run to absolute simulated tick "
+                      "specified including ticks from a restored checkpoint")
+    parser.add_argument("--rel-max-tick", type=int, default=None,
+                      metavar="TICKS", help="Simulate for specified number of"
+                      " ticks relative to the simulation start tick (e.g. if "
+                      "restoring a checkpoint)")
+    parser.add_argument("--maxtime", type=float, default=None,
+                      help="Run to the specified absolute simulated time in "
+                      "seconds")
+    parser.add_argument("-P", "--param", action="append", default=[],
+        help="Set a SimObject parameter relative to the root node. "
+             "An extended Python multi range slicing syntax can be used "
+             "for arrays. For example: "
+             "'system.cpu[0,1,3:8:2].max_insts_all_threads = 42' "
+             "sets max_insts_all_threads for cpus 0, 1, 3, 5 and 7 "
+             "Direct parameters of the root object are not accessible, "
+             "only parameters of its children.")
+
+    # parser.add_argument("--list-cpu-types",
+    #                   action="callback", callback=_listCpuTypes,
+    #                   help="List available CPU types")
+    parser.add_argument("--cpu-type", type=str, default="AtomicSimpleCPU",
+                      choices=ObjectList.cpu_list.get_names(),
+                      help = "type of cpu to run with")
+    # parser.add_argument("--list-bp-types",
+    #                   action="callback", callback=_listBPTypes,
+    #                   help="List available branch predictor types")
+    # parser.add_argument("--list-indirect-bp-types",
+    #                   action="callback", callback=_listIndirectBPTypes,
+    #                   help="List available indirect branch predictor types")
+    parser.add_argument("--bp-type", type=str, default=None,
+                      choices=ObjectList.bp_list.get_names(),
+                      help = """
+                      type of branch predictor to run with
+                      (if not set, use the default branch predictor of
+                      the selected CPU)""")
+    parser.add_argument("--indirect-bp-type", type=str, default=None,
+                      choices=ObjectList.indirect_bp_list.get_names(),
+                      help = "type of indirect branch predictor to run with")
+    # parser.add_argument("--list-hwp-types",
+    #                   action="callback", callback=_listHWPTypes,
+    #                   help="List available hardware prefetcher types")
+    parser.add_argument("--l1i-hwp-type", type=str, default=None,
+                      choices=ObjectList.hwp_list.get_names(),
+                      help = """
+                      type of hardware prefetcher to use with the L1
+                      instruction cache.
+                      (if not set, use the default prefetcher of
+                      the selected cache)""")
+    parser.add_argument("--l1d-hwp-type", type=str, default=None,
+                      choices=ObjectList.hwp_list.get_names(),
+                      help = """
+                      type of hardware prefetcher to use with the L1
+                      data cache.
+                      (if not set, use the default prefetcher of
+                      the selected cache)""")
+    parser.add_argument("--l2-hwp-type", type=str, default=None,
+                      choices=ObjectList.hwp_list.get_names(),
+                      help = """
+                      type of hardware prefetcher to use with the L2 cache.
+                      (if not set, use the default prefetcher of
+                      the selected cache)""")
+    parser.add_argument("--checker", action="store_true");
+    parser.add_argument("--cpu-clock", action="store", type=str,
+                      default='2GHz',
+                      help="Clock for blocks running at CPU speed")
+    parser.add_argument("--smt", action="store_true", default=False,
+                      help = """
+                      Only used if multiple programs are specified. If true,
+                      then the number of threads per cpu is same as the
+                      number of programs.""")
+    parser.add_argument("--elastic-trace-en", action="store_true",
+                      help="""Enable capture of data dependency and instruction
+                      fetch traces using elastic trace probe.""")
+    # Trace file paths input to trace probe in a capture simulation and input
+    # to Trace CPU in a replay simulation
+    parser.add_argument("--inst-trace-file", action="store", type=str,
+                      help="""Instruction fetch trace file input to
+                      Elastic Trace probe in a capture simulation and
+                      Trace CPU in a replay simulation""", default="")
+    parser.add_argument("--data-trace-file", action="store", type=str,
+                      help="""Data dependency trace file input to
+                      Elastic Trace probe in a capture simulation and
+                      Trace CPU in a replay simulation""", default="")
+
+    parser.add_argument("-l", "--lpae", action="store_true")
+    parser.add_argument("-V", "--virtualisation", action="store_true")
+
+    # dist-gem5 arguments
+    parser.add_argument("--dist", action="store_true",
+                      help="Parallel distributed gem5 simulation.")
+    parser.add_argument("--dist-sync-on-pseudo-op", action="store_true",
+                      help="Use a pseudo-op to start dist-gem5 synchronization.")
+    parser.add_argument("--is-switch", action="store_true",
+                      help="Select the network switch simulator process for a"\
+                      "distributed gem5 run")
+    parser.add_argument("--dist-rank", default=0, action="store", type=int,
+                      help="Rank of this system within the dist gem5 run.")
+    parser.add_argument("--dist-size", default=0, action="store", type=int,
+                      help="Number of gem5 processes within the dist gem5 run.")
+    parser.add_argument("--dist-server-name",
+                      default="127.0.0.1",
+                      action="store", type=str,
+                      help="Name of the message server host\nDEFAULT: localhost")
+    parser.add_argument("--dist-server-port",
+                      default=2200,
+                      action="store", type=int,
+                      help="Message server listen port\nDEFAULT: 2200")
+    parser.add_argument("--dist-sync-repeat",
+                      default="0us",
+                      action="store", type=str,
+                      help="Repeat interval for synchronisation barriers among dist-gem5 processes\nDEFAULT: --ethernet-linkdelay")
+    parser.add_argument("--dist-sync-start",
+                      default="5200000000000t",
+                      action="store", type=str,
+                      help="Time to schedule the first dist synchronisation barrier\nDEFAULT:5200000000000t")
+    parser.add_argument("--ethernet-linkspeed", default="10Gbps",
+                        action="store", type=str,
+                        help="Link speed in bps\nDEFAULT: 10Gbps")
+    parser.add_argument("--ethernet-linkdelay", default="10us",
+                      action="store", type=str,
+                      help="Link delay in seconds\nDEFAULT: 10us")
+
+    # Run duration arguments
+    parser.add_argument("-I", "--maxinsts", action="store", type=int,
+                      default=None, help="""Total number of instructions to
+                                            simulate (default: run forever)""")
+    parser.add_argument("--work-item-id", action="store", type=int,
+                      help="the specific work id for exit & checkpointing")
+    parser.add_argument("--num-work-ids", action="store", type=int,
+                      help="Number of distinct work item types")
+    parser.add_argument("--work-begin-cpu-id-exit", action="store", type=int,
+                      help="exit when work starts on the specified cpu")
+    parser.add_argument("--work-end-exit-count", action="store", type=int,
+                      help="exit at specified work end count")
+    parser.add_argument("--work-begin-exit-count", action="store", type=int,
+                      help="exit at specified work begin count")
+    parser.add_argument("--init-param", action="store", type=int, default=0,
+                      help="""Parameter available in simulation with m5
+                              initparam""")
+    parser.add_argument("--initialize-only", action="store_true", default=False,
+                      help="""Exit after initialization. Do not simulate time.
+                              Useful when gem5 is run as a library.""")
+
+    # Simpoint arguments
+    parser.add_argument("--simpoint-profile", action="store_true",
+                      help="Enable basic block profiling for SimPoints")
+    parser.add_argument("--simpoint-interval", type=int, default=10000000,
+                      help="SimPoint interval in num of instructions")
+    parser.add_argument("--take-simpoint-checkpoints", action="store", type=str,
+        help="<simpoint file,weight file,interval-length,warmup-length>")
+    parser.add_argument("--restore-simpoint-checkpoint", action="store_true",
+        help="restore from a simpoint checkpoint taken with " +
+             "--take-simpoint-checkpoints")
+
+    # Checkpointing arguments
+    ###Note that performing checkpointing via python script files will override
+    ###checkpoint instructions built into binaries.
+    parser.add_argument("--take-checkpoints", action="store", type=str,
+        help="<M,N> take checkpoints at tick M and every N ticks thereafter")
+    parser.add_argument("--max-checkpoints", action="store", type=int,
+        help="the maximum number of checkpoints to drop", default=5)
+    parser.add_argument("--checkpoint-dir", action="store", type=str,
+        help="Place all checkpoints in this absolute directory")
+    parser.add_argument("-r", "--checkpoint-restore", action="store", type=int,
+        help="restore from checkpoint <N>")
+    parser.add_argument("--checkpoint-at-end", action="store_true",
+                      help="take a checkpoint at end of run")
+    parser.add_argument("--work-begin-checkpoint-count", action="store", type=int,
+                      help="checkpoint at specified work begin count")
+    parser.add_argument("--work-end-checkpoint-count", action="store", type=int,
+                      help="checkpoint at specified work end count")
+    parser.add_argument("--work-cpus-checkpoint-count", action="store", type=int,
+                      help="checkpoint and exit when active cpu count is reached")
+    parser.add_argument("--restore-with-cpu", action="store", type=str,
+                      default="AtomicSimpleCPU",
+                      choices=ObjectList.cpu_list.get_names(),
+                      help = "cpu type for restoring from a checkpoint")
+
+
+    # CPU Switching - default switch model goes from a checkpoint
+    # to a timing simple CPU with caches to warm up, then to detailed CPU for
+    # data measurement
+    parser.add_argument("--repeat-switch", action="store", type=int,
+        default=None,
+        help="switch back and forth between CPUs with period <N>")
+    parser.add_argument("-s", "--standard-switch", action="store", type=int,
+        default=None,
+        help="switch from timing to Detailed CPU after warmup period of <N>")
+    parser.add_argument("-p", "--prog-interval", type=str,
+        help="CPU Progress Interval")
+
+    # Fastforwarding and simpoint related materials
+    parser.add_argument("-W", "--warmup-insts", action="store", type=int,
+        default=None,
+        help="Warmup period in total instructions (requires --standard-switch)")
+    parser.add_argument("--bench", action="store", type=str, default=None,
+        help="base names for --take-checkpoint and --checkpoint-restore")
+    parser.add_argument("-F", "--fast-forward", action="store", type=str,
+        default=None,
+        help="Number of instructions to fast forward before switching")
+    parser.add_argument("-S", "--simpoint", action="store_true", default=False,
+        help="""Use workload simpoints as an instruction offset for
+                --checkpoint-restore or --take-checkpoint.""")
+    parser.add_argument("--at-instruction", action="store_true", default=False,
+        help="""Treat value of --checkpoint-restore or --take-checkpoint as a
+                number of instructions.""")
+    parser.add_argument("--spec-input", default="ref", type=str,
+                      choices=["ref", "test", "train", "smred", "mdred",
+                               "lgred"],
+                      help="Input set size for SPEC CPU2000 benchmarks.")
+    parser.add_argument("--arm-iset", default="arm", type=str,
+                      choices=["arm", "thumb", "aarch64"],
+                      help="ARM instruction set.")
+
+    
+
+
+# configure HMC host controller
+def config_hmc_host_ctrl(opt, system):
+
+    # create HMC host controller
+    system.hmc_host = SubSystem()
+
+    # Create additional crossbar for arch1
+    if opt.arch == "distributed" or opt.arch == "mixed":
+        clk = '100GHz'
+        vd = VoltageDomain(voltage='1V')
+        # Create additional crossbar for arch1
+        system.membus = NoncoherentXBar(width=8)
+        system.membus.badaddr_responder = BadAddr()
+        system.membus.default = Self.badaddr_responder.pio
+        system.membus.width = 8
+        system.membus.frontend_latency = 3
+        system.membus.forward_latency = 4
+        system.membus.response_latency = 2
+        cd = SrcClockDomain(clock=clk, voltage_domain=vd)
+        system.membus.clk_domain = cd
+
+    # create memory ranges for the serial links
+    slar = convert.toMemorySize(opt.serial_link_addr_range)
+    # Memmory ranges of serial link for arch-0. Same as the ranges of vault
+    # controllers (4 vaults to 1 serial link)
+    if opt.arch == "same":
+        ser_ranges = [AddrRange(0, (4*slar)-1) for i in
+                      range(opt.num_serial_links)]
+    # Memmory ranges of serial link for arch-1. Distributed range accross
+    # links
+    if opt.arch == "distributed":
+        ser_ranges = [AddrRange(i*slar, ((i+1)*slar)-1) for i in
+                      range(opt.num_serial_links)]
+    # Memmory ranges of serial link for arch-2 'Mixed' address distribution
+    # over links
+    if opt.arch == "mixed":
+        ser_range0 = AddrRange(0, (1*slar)-1)
+        ser_range1 = AddrRange(1*slar, 2*slar-1)
+        ser_range2 = AddrRange(0, (4*slar)-1)
+        ser_range3 = AddrRange(0, (4*slar)-1)
+        ser_ranges = [ser_range0, ser_range1, ser_range2, ser_range3]
+
+    # Serial link Controller with 16 SerDes links at 10 Gbps with serial link
+    # ranges w.r.t to architecture
+    sl = [SerialLink(ranges=ser_ranges[i],
+                     req_size=opt.link_buffer_size_req,
+                     resp_size=opt.link_buffer_size_rsp,
+                     num_lanes=opt.num_lanes_per_link,
+                     link_speed=opt.serial_link_speed,
+                     delay=opt.total_ctrl_latency) for i in
+          range(opt.num_serial_links)]
+    system.hmc_host.seriallink = sl
+
+    # enable global monitor
+    if opt.enable_global_monitor:
+        system.hmc_host.lmonitor = [CommMonitor() for i in
+                                    range(opt.num_serial_links)]
+
+    # set the clock frequency for serial link
+    for i in range(opt.num_serial_links):
+        clk = opt.link_controller_frequency
+        vd = VoltageDomain(voltage='1V')
+        scd = SrcClockDomain(clock=clk, voltage_domain=vd)
+        system.hmc_host.seriallink[i].clk_domain = scd
+
+    # Connect membus/traffic gen to Serial Link Controller for differrent HMC
+    # architectures
+    hh = system.hmc_host
+    if opt.arch == "distributed":
+        mb = system.membus
+        for i in range(opt.num_links_controllers):
+            if opt.enable_global_monitor:
+                mb.master = hh.lmonitor[i].slave
+                hh.lmonitor[i].master = hh.seriallink[i].slave
+            else:
+                mb.master = hh.seriallink[i].slave
+    if opt.arch == "mixed":
+        mb = system.membus
+        if opt.enable_global_monitor:
+            mb.master = hh.lmonitor[0].slave
+            hh.lmonitor[0].master = hh.seriallink[0].slave
+            mb.master = hh.lmonitor[1].slave
+            hh.lmonitor[1].master = hh.seriallink[1].slave
+        else:
+            mb.master = hh.seriallink[0].slave
+            mb.master = hh.seriallink[1].slave
+
+    if opt.arch == "same":
+        for i in range(opt.num_links_controllers):
+            if opt.enable_global_monitor:
+                hh.lmonitor[i].master = hh.seriallink[i].slave
+
+    return system
+
+
+# Create an HMC device
+def config_hmc_dev(opt, system, hmc_host):
+
+    # create HMC device
+    system.hmc_dev = SubSystem()
+
+    # create memory ranges for the vault controllers
+    arv = convert.toMemorySize(opt.hmc_dev_vault_size)
+    addr_ranges_vaults = [AddrRange(i*arv, ((i+1)*arv-1)) for i in
+                          range(opt.hmc_dev_num_vaults)]
+    system.mem_ranges = addr_ranges_vaults
+
+    if opt.enable_link_monitor:
+        lm = [CommMonitor() for i in range(opt.num_links_controllers)]
+        system.hmc_dev.lmonitor = lm
+
+    # 4 HMC Crossbars located in its logic-base (LoB)
+    xb = [NoncoherentXBar(width=opt.xbar_width,
+                          frontend_latency=opt.xbar_frontend_latency,
+                          forward_latency=opt.xbar_forward_latency,
+                          response_latency=opt.xbar_response_latency) for i in
+          range(opt.number_mem_crossbar)]
+    system.hmc_dev.xbar = xb
+
+    for i in range(opt.number_mem_crossbar):
+        clk = opt.xbar_frequency
+        vd = VoltageDomain(voltage='1V')
+        scd = SrcClockDomain(clock=clk, voltage_domain=vd)
+        system.hmc_dev.xbar[i].clk_domain = scd
+
+    # Attach 4 serial link to 4 crossbar/s
+    for i in range(opt.num_serial_links):
+        if opt.enable_link_monitor:
+            system.hmc_host.seriallink[i].master = \
+                system.hmc_dev.lmonitor[i].slave
+            system.hmc_dev.lmonitor[i].master = system.hmc_dev.xbar[i].slave
+        else:
+            system.hmc_host.seriallink[i].master = system.hmc_dev.xbar[i].slave
+
+    # Connecting xbar with each other for request arriving at the wrong xbar,
+    # then it will be forward to correct xbar. Bridge is used to connect xbars
+    if opt.arch == "same":
+        numx = len(system.hmc_dev.xbar)
+
+        # create a list of buffers
+        system.hmc_dev.buffers = [Bridge(req_size=opt.xbar_buffer_size_req,
+                                         resp_size=opt.xbar_buffer_size_resp)
+                                  for i in range(numx*(opt.mem_chunk-1))]
+
+        # Buffer iterator
+        it = iter(list(range(len(system.hmc_dev.buffers))))
+
+        # necesarry to add system_port to one of the xbar
+        system.system_port = system.hmc_dev.xbar[3].slave
+
+        # iterate over all the crossbars and connect them as required
+        for i in range(numx):
+            for j in range(numx):
+                # connect xbar to all other xbars except itself
+                if i != j:
+                    # get the next index of buffer
+                    index = next(it)
+
+                    # Change the default values for ranges of bridge
+                    system.hmc_dev.buffers[index].ranges = system.mem_ranges[
+                            j * int(opt.mem_chunk):
+                            (j + 1) * int(opt.mem_chunk)]
+
+                    # Connect the bridge between corssbars
+                    system.hmc_dev.xbar[i].master = system.hmc_dev.buffers[
+                            index].slave
+                    system.hmc_dev.buffers[
+                            index].master = system.hmc_dev.xbar[j].slave
+                else:
+                    # Don't connect the xbar to itself
+                    pass
+
+    # Two crossbars are connected to all other crossbars-Other 2 vault
+    # can only direct traffic to it local vaults
+    if opt.arch == "mixed":
+        system.hmc_dev.buffer30 = Bridge(ranges=system.mem_ranges[0:4])
+        system.hmc_dev.xbar[3].master = system.hmc_dev.buffer30.slave
+        system.hmc_dev.buffer30.master = system.hmc_dev.xbar[0].slave
+
+        system.hmc_dev.buffer31 = Bridge(ranges=system.mem_ranges[4:8])
+        system.hmc_dev.xbar[3].master = system.hmc_dev.buffer31.slave
+        system.hmc_dev.buffer31.master = system.hmc_dev.xbar[1].slave
+
+        system.hmc_dev.buffer32 = Bridge(ranges=system.mem_ranges[8:12])
+        system.hmc_dev.xbar[3].master = system.hmc_dev.buffer32.slave
+        system.hmc_dev.buffer32.master = system.hmc_dev.xbar[2].slave
+
+        system.hmc_dev.buffer20 = Bridge(ranges=system.mem_ranges[0:4])
+        system.hmc_dev.xbar[2].master = system.hmc_dev.buffer20.slave
+        system.hmc_dev.buffer20.master = system.hmc_dev.xbar[0].slave
+
+        system.hmc_dev.buffer21 = Bridge(ranges=system.mem_ranges[4:8])
+        system.hmc_dev.xbar[2].master = system.hmc_dev.buffer21.slave
+        system.hmc_dev.buffer21.master = system.hmc_dev.xbar[1].slave
+
+        system.hmc_dev.buffer23 = Bridge(ranges=system.mem_ranges[12:16])
+        system.hmc_dev.xbar[2].master = system.hmc_dev.buffer23.slave
+        system.hmc_dev.buffer23.master = system.hmc_dev.xbar[3].slave

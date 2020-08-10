@@ -148,8 +148,8 @@ class DRAMCtrl(QoSMemCtrl):
     tRCD = Param.Latency("RAS to CAS delay")
 
     # the time from issuing a read/write command to seeing the actual data
-    tCL = Param.Latency("CAS latency")
-
+    tCL = Param.Latency("CAS latency") #feels like one of the important stuff
+    
     # minimum time between a precharge and subsequent activate
     tRP = Param.Latency("Row precharge time")
 

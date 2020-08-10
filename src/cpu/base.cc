@@ -558,7 +558,11 @@ void
 BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     assert(threadContexts.size() == oldCPU->threadContexts.size());
-    assert(_switchedOut);
+    // assert(_cpuId == oldCPU->cpuId());
+    // assert(_switchedOut);
+    //assert(0 == oldCPU->cpuId());
+    //cout<<_switchedOut<<"\n";
+   //assert(_switchedOut);
     assert(oldCPU != this);
     _pid = oldCPU->getPid();
     _taskId = oldCPU->taskId();
@@ -583,14 +587,6 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         assert(newTC->contextId() == oldTC->contextId());
         assert(newTC->threadId() == oldTC->threadId());
         system->replaceThreadContext(newTC, newTC->contextId());
-
-        /* This code no longer works since the zero register (e.g.,
-         * r31 on Alpha) doesn't necessarily contain zero at this
-         * point.
-           if (DTRACE(Context))
-            ThreadContext::compare(oldTC, newTC);
-        */
-
         Port *old_itb_port = oldTC->getITBPtr()->getTableWalkerPort();
         Port *old_dtb_port = oldTC->getDTBPtr()->getTableWalkerPort();
         Port *new_itb_port = newTC->getITBPtr()->getTableWalkerPort();
@@ -629,6 +625,12 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         }
     }
 
+    // interrupts = oldCPU->interrupts;
+    // for (ThreadID tid = 0; tid < numThreads; tid++) {
+    //     interrupts[tid]->setCPU(this);
+    // }
+    // oldCPU->interrupts.clear();
+
     if (FullSystem) {
         for (ThreadID i = 0; i < size; ++i)
             threadContexts[i]->profileClear();
@@ -636,58 +638,108 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         if (profileEvent)
             schedule(profileEvent, curTick());
     }
-
-
-    //Flushing local caches of host CPU when transferring control to a PIM core
-    BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
-    if(!pim_cpu)
-    {
-        pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(this->pim_id)).data());
+    BaseCache* l1_dcache;
+    BaseCache* l1_icache;
+    BaseCache* l2_cache;
+    BaseCPU* host_cpu;
+    BaseCPU* pim_cpu; 
+    // Flushing local caches of host CPU
+    pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+    if(!pim_cpu){
+        pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(this->p_id)).data());
     }
     if(pim_cpu==this)
     {   
-        BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
-        BaseCache* l1_dcache;
-        BaseCache* l1_icache;
-        BaseCache* l2_cache;
-        if(!host_cpu)
-        {  
-           host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
-           l1_dcache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".dcache").data()); 
-           l1_icache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".icache").data()); 
-           l2_cache = (BaseCache*)SimObject::find("system.l2");
-            
-        }
-        else
-        {
-           l1_dcache = (BaseCache*)SimObject::find("system.cpu.dcache"); 
-           l1_icache = (BaseCache*)SimObject::find("system.cpu.icache");
-           l2_cache = (BaseCache*)SimObject::find("system.l2"); 
-        }
+       host_cpu =(BaseCPU*)SimObject::find("system.cpu");
 
-        if(l1_dcache)
-        {  
-           cout<<"Flushing l1_dcache of Host CPU "<<this->host_id<<"\n";
-           l1_dcache->mem_Writeback();
-           l1_dcache->mem_Invalidate();
-        }
+       if(!host_cpu)
+       {  
+          host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
+          l1_dcache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".dcache").data()); 
+          l1_icache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".icache").data()); 
+          l2_cache = (BaseCache*)SimObject::find("system.l2");
+           
+       }
+       else
+       {
+          l1_dcache = (BaseCache*)SimObject::find("system.cpu.dcache"); 
+          l1_icache = (BaseCache*)SimObject::find("system.cpu.icache");
+          l2_cache = (BaseCache*)SimObject::find("system.l2"); 
+       }
 
-        if(l1_icache)
-        {  
-           cout<<"Flushing l1_icache of Host CPU "<<this->host_id<<"\n";
-           l1_icache->mem_Writeback();
-           l1_icache->mem_Invalidate();
-        }
+       if(l1_dcache)
+       {  
+          cout<<"Flushing l1_dcache of Host CPU"<<"\n";
+          l1_dcache->mem_Writeback();
+          l1_dcache->mem_Invalidate();
+       }
 
-        if(l2_cache)
-        {              
-           cout<<"Flushing l2_dcache of Host CPU "<<this->host_id<<"\n";
-           l2_cache->mem_Writeback();
-           l2_cache->mem_Invalidate();
-        }
+       if(l1_icache)
+       {  
+          cout<<"Flushing l1_icache of Host CPU"<<"\n";
+          l1_icache->mem_Writeback();
+          l1_icache->mem_Invalidate();
+       }
 
+      if(l2_cache)
+       {              
+          cout<<"Flushing l2_cache of Host CPU"<<"\n";
+          l2_cache->mem_Writeback();
+          l2_cache->mem_Invalidate();
+       }
     }
+    
+    host_cpu =(BaseCPU*)SimObject::find("system.cpu");
+    if(!host_cpu){
+            host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
+    }
+   if(host_cpu==this)
+   {   
+       pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+       if(!host_cpu)
+       {  
+          pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(this->p_id)).data());
+          l1_dcache = (BaseCache*)SimObject::find(("system.pim_cpu"+std::to_string(this->p_id)+".dcache").data()); 
+          l1_icache = (BaseCache*)SimObject::find(("system.pim_cpu"+std::to_string(this->p_id)+".icache").data()); 
+          l2_cache = (BaseCache*)SimObject::find("system.pim_l2");
+           
+       }
+       else
+       {
+          l1_dcache = (BaseCache*)SimObject::find("system.pim_cpu.dcache"); 
+          l1_icache = (BaseCache*)SimObject::find("system.pim_cpu.icache");
+          l2_cache = (BaseCache*)SimObject::find("system.pim_l2"); 
+       }
 
+       if(l1_dcache)
+       {  
+          cout<<"Flushing l1_dcache of PIM CPU"<<"\n";
+          l1_dcache->mem_Writeback();
+          l1_dcache->mem_Invalidate();
+       }
+
+       if(l1_icache)
+       {  
+          cout<<"Flushing l1_icache of PIM CPU"<<"\n";
+          l1_icache->mem_Writeback();
+          l1_icache->mem_Invalidate();
+       }
+
+      if(l2_cache)
+       {              
+          cout<<"Flushing l2_cache of PIM CPU"<<"\n";
+          l2_cache->mem_Writeback();
+          l2_cache->mem_Invalidate();
+       }
+   }
+   //oldCPU->_switchedOut = false;
+    // All CPUs have an instruction and a data port, and the new CPU's
+    // ports are dangling while the old CPU has its ports connected
+    // already. Unbind the old CPU and then bind the ports of the one
+    // we are switching to.
+    
+    //getInstPort().takeOverFrom(&oldCPU->getInstPort());
+    //getDataPort().takeOverFrom(&oldCPU->getDataPort());
 }
 
 void

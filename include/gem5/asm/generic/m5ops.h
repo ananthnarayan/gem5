@@ -66,7 +66,7 @@
 #define M5OP_ADD_SYMBOL         0x53
 #define M5OP_PANIC              0x54
 
-#define M5OP_RESERVED1          0x55 // Reserved for user, used to be annotate
+#define get_pim_id_func         0x55 // Reserved for user, used to be annotate
 #define pim_process_func        0x56 
 #define cpu_print_func          0x57 // Reserved for user
 #define host_process_func       0x58 // Reserved for user
@@ -109,8 +109,8 @@
     M5OP(m5_se_page_fault, M5OP_SE_PAGE_FAULT)                  \
     M5OP(m5_dist_toggle_sync, M5OP_DIST_TOGGLE_SYNC)            \
     M5OP(m5_cpu_print,cpu_print_func)                           \
-    M5OP(m5_host_process, host_process_func)           
-                                
+    M5OP(m5_host_process, host_process_func)                    \
+    M5OP(m5_get_pim_id, get_pim_id_func)                              
 
 #define M5OP_MERGE_TOKENS_I(a, b) a##b
 #define M5OP_MERGE_TOKENS(a, b) M5OP_MERGE_TOKENS_I(a, b)

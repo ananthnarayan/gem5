@@ -451,7 +451,7 @@ def run(options, root, testsys, cpu_class):
     if options.repeat_switch and options.take_checkpoints:
         fatal("Can't specify both --repeat-switch and --take-checkpoints")
 
-    np = options.num_host_cpus
+    np = options.num_cpus
     switch_cpus = None
 
     if options.prog_interval:

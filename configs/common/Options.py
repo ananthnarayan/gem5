@@ -68,7 +68,7 @@ def _listPlatformTypes(option, opt, value, parser):
 # being used, and consequently no CPUs, but rather various types of
 # testers and traffic generators.
 def addNoISAOptions(parser):
-    parser.add_option("-n", "--num-host-cpus", type="int", default=1)
+    parser.add_option("-n", "--num-cpus", type="int", default=1)
     parser.add_option("--sys-voltage", action="store", type="string",
                       default='1.0V',
                       help = """Top-level voltage for blocks running at system
@@ -90,7 +90,7 @@ def addNoISAOptions(parser):
     parser.add_option("--mem-ranks", type="int", default=1,
                       help = "number of memory ranks per channel")
     parser.add_option("--mem-size", action="store", type="string",
-                      default="512MB",
+                      default="4GB",
                       help="Specify the physical memory size (single memory)")
 
 
@@ -399,7 +399,7 @@ def addPIMOptions(parser):
                       choices=["cpu", "kernel", "hybrid"],
 		      help = "type of pim kernel inside the memory to use")
     parser.add_option("--kernel-type", type="choice", default="adder",
-                      choices=["adder", "multiplier", "divider", "mod"],
+                      choices=["adder", "multiplier","subtractor"],
 		      help = "type of pim kernel inside the memory to use")
     parser.add_option("--num-pim-kernels", type="int", default=0,
                   help="Number of in-memory kernels")
@@ -564,3 +564,5 @@ def add_hmc_options(parser):
                         type=int, help="burst length in bytes. Note: the\
                         cache line size will be set to this value.\nDefault:\
                         256")
+
+
