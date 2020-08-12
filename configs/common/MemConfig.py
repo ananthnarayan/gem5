@@ -196,6 +196,7 @@ def config_mem(options, system):
             subsystem.mem_ctrls[i].port = xbar.master 
 
     #@PIM - Connect all the xbars to the pim_bus
-    for i in range(4):
-        xbar[i].master = system.pim_bus[0].slave
+    if opt_mem_type == "HMC_2500_1x32":
+        for i in range(4):
+            xbar[i].master = system.pim_bus[0].slave
 
