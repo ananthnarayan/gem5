@@ -558,20 +558,16 @@ void
 BaseCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     assert(threadContexts.size() == oldCPU->threadContexts.size());
-    // assert(_cpuId == oldCPU->cpuId());
-    // assert(_switchedOut);
-    //assert(0 == oldCPU->cpuId());
-    //cout<<_switchedOut<<"\n";
-   //assert(_switchedOut);
     assert(oldCPU != this);
     _pid = oldCPU->getPid();
     _taskId = oldCPU->taskId();
+
     // Take over the power state of the switchedOut CPU
     powerState->set(oldCPU->powerState->get());
-
     previousState = oldCPU->previousState;
     previousCycle = oldCPU->previousCycle;
 
+    //Change the SwitchOut satate
     _switchedOut = false;
     oldCPU->_switchedOut = true;
 
@@ -580,6 +576,7 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         ThreadContext *newTC = threadContexts[i];
         ThreadContext *oldTC = oldCPU->threadContexts[i];
 
+        //Takeoverfrom Old threadcontext to new threacontext
         newTC->takeOverFrom(oldTC);
 
         CpuEvent::replaceThreadContext(oldTC, newTC);
@@ -625,11 +622,6 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         }
     }
 
-    // interrupts = oldCPU->interrupts;
-    // for (ThreadID tid = 0; tid < numThreads; tid++) {
-    //     interrupts[tid]->setCPU(this);
-    // }
-    // oldCPU->interrupts.clear();
 
     if (FullSystem) {
         for (ThreadID i = 0; i < size; ++i)
@@ -638,14 +630,16 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         if (profileEvent)
             schedule(profileEvent, curTick());
     }
+
     BaseCache* l1_dcache;
     BaseCache* l1_icache;
     BaseCache* l2_cache;
     BaseCPU* host_cpu;
     BaseCPU* pim_cpu; 
-    // Flushing local caches of host CPU
+
+    // @PIM - Flushing local caches of host CPU
     pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
-    if(!pim_cpu){
+    if(!pim_cpu){ //to handle a case of multiple pim cpu
         pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(this->p_id)).data());
     }
     if(pim_cpu==this)
@@ -657,8 +651,7 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
           host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
           l1_dcache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".dcache").data()); 
           l1_icache = (BaseCache*)SimObject::find(("system.cpu"+std::to_string(this->host_id)+".icache").data()); 
-          l2_cache = (BaseCache*)SimObject::find("system.l2");
-           
+          l2_cache = (BaseCache*)SimObject::find("system.l2");   
        }
        else
        {
@@ -689,12 +682,14 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
        }
     }
     
+
+    //@PIM - Flushing the cache of the PIM CPU
     host_cpu =(BaseCPU*)SimObject::find("system.cpu");
-    if(!host_cpu){
+    if(!host_cpu){//to handle the case of the multiple CPUs 
             host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
     }
    if(host_cpu==this)
-   {   
+   {  
        pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
        if(!host_cpu)
        {  
@@ -732,14 +727,6 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
           l2_cache->mem_Invalidate();
        }
    }
-   //oldCPU->_switchedOut = false;
-    // All CPUs have an instruction and a data port, and the new CPU's
-    // ports are dangling while the old CPU has its ports connected
-    // already. Unbind the old CPU and then bind the ports of the one
-    // we are switching to.
-    
-    //getInstPort().takeOverFrom(&oldCPU->getInstPort());
-    //getDataPort().takeOverFrom(&oldCPU->getDataPort());
 }
 
 void

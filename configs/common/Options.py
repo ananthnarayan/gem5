@@ -553,16 +553,7 @@ def add_hmc_options(parser):
     parser.add_option("--hmc-dev-vault-size", default='256MB', type=str,
                         help="vault storage capacity in bytes. Default:\
                         256MB")
-    #parser.add_option("--mem-type", type=str, choices=["HMC_2500_1x32"],
-    #                    default="HMC_2500_1x32", help="type of HMC memory to\
-    #                    use. Default: HMC_2500_1x32")
-    #parser.add_option("--mem-channels", default=1, action="store", type=int,
-    #                    help="Number of memory channels")
-    #parser.add_option("--mem-ranks", default=1, action="store", type=int,
-    #                    help="Number of ranks to iterate across")
     parser.add_option("--burst-length", default=256, action="store",
                         type=int, help="burst length in bytes. Note: the\
                         cache line size will be set to this value.\nDefault:\
                         256")
-
-

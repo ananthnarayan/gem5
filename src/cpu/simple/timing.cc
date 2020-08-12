@@ -1075,38 +1075,15 @@ TimingSimpleCPU::printAddr(Addr a)
 {
     dcachePort.printAddr(a);
 }
+
+//@PIM - Used to the p_id of the current CPU
 uint64_t
 TimingSimpleCPU::get_pim(ThreadContext *tc)
 {
-    BaseCache* l1_dcache;
-    BaseCache* l1_icache;
-    BaseCache* l2_cache;
-    cout<<"\n"<<"flushing the cache"<<"\n\n";
-    l1_dcache = (BaseCache*)SimObject::find("system.cpu.dcache"); 
-    l1_icache = (BaseCache*)SimObject::find("system.cpu.icache");
-    l2_cache = (BaseCache*)SimObject::find("system.l2"); 
-    if(l1_dcache)
-    {  
-      cout<<"Flushing l1_dcache of Host CPU"<<"\n";
-      l1_dcache->mem_Writeback();
-      l1_dcache->mem_Invalidate();
-    }
-
-    if(l1_icache)
-    {  
-      cout<<"Flushing l1_icache of Host CPU"<<"\n";
-      l1_icache->mem_Writeback();
-      l1_icache->mem_Invalidate();
-    }
-
-    if(l2_cache)
-    {              
-      cout<<"Flushing l2_dcache of Host CPU"<<"\n";
-      l2_cache->mem_Writeback();
-      l2_cache->mem_Invalidate();
-    }
     return this->p_id;
 }
+
+//@PIM - PIM Function helps in transfering control from HOST to PIM CPU
 void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
 { 
     BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
@@ -1134,7 +1111,7 @@ void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
     return;
 }
 
-
+//@PIM - HOST Function helps in transfering control from PIM to HOST CPU
 void TimingSimpleCPU::HOST(ThreadContext *tc)
 {   
     BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
@@ -1151,8 +1128,7 @@ void TimingSimpleCPU::HOST(ThreadContext *tc)
     }
     
     if(tc->getCpuPtr() == host_cpu)
-    {
-      cout<<"heyy"<<"\n\n";  
+    {  
       return;
     }
     host_cpu->host_id = this->host_id;
@@ -1162,6 +1138,8 @@ void TimingSimpleCPU::HOST(ThreadContext *tc)
     host_cpu->activateContext(0);
     return;
 }
+
+
 TimingSimpleCPU *
 TimingSimpleCPUParams::create()
 {

@@ -181,21 +181,21 @@ def config_mem(options, system):
             mem_ctrls.append(mem_ctrl)
 
     subsystem.mem_ctrls = mem_ctrls
-    print(len(mem_ctrls))
-    print(mem_ctrls)
-    print(system.pim_bus[0])
-    print(system.membus)
-    print(xbar[0])
-    # Connect the controllers to the membus
+
+    
     for i in range(len(subsystem.mem_ctrls)):
         if opt_mem_type == "HMC_2500_1x32":
+            #@PIM - Connect all the xbars to the pim_bus
             subsystem.mem_ctrls[i].port = system.pim_bus[0].master
             # Set memory device size. There is an independent controller for
             # each vault. All vaults are same size.
             subsystem.mem_ctrls[i].device_size = options.hmc_dev_vault_size
         else:
+            # Connect the controllers to the membus
             #This the case of the DDR where xbar is system.membus (xbar = system.membus)
             subsystem.mem_ctrls[i].port = xbar.master 
+
+    #@PIM - Connect all the xbars to the pim_bus
     for i in range(4):
         xbar[i].master = system.pim_bus[0].slave
 

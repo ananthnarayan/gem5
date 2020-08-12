@@ -36,89 +36,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# A Simplified model of a complete HMC device. Based on:
-#  [1] http://www.hybridmemorycube.org/specification-download/
-#  [2] High performance AXI-4.0 based interconnect for extensible smart memory
-#      cubes(E. Azarkhish et. al)
-#  [3] Low-Power Hybrid Memory Cubes With Link Power Management and Two-Level
-#      Prefetching (J. Ahn et. al)
-#  [4] Memory-centric system interconnect design with Hybrid Memory Cubes
-#      (G. Kim et. al)
-#  [5] Near Data Processing, Are we there yet? (M. Gokhale)
-#      http://www.cs.utah.edu/wondp/gokhale.pdf
-#  [6] openHMC - A Configurable Open-Source Hybrid Memory Cube Controller
-#      (J. Schmidt)
-#  [7] Hybrid Memory Cube performance characterization on data-centric
-#      workloads (M. Gokhale)
-#
-# This script builds a complete HMC device composed of vault controllers,
-# serial links, the main internal crossbar, and an external hmc controller.
-#
-# - VAULT CONTROLLERS:
-#   Instances of the HMC_2500_1x32 class with their functionality specified in
-#   dram_ctrl.cc
-#
-# - THE MAIN XBAR:
-#   This component is simply an instance of the NoncoherentXBar class, and its
-#   parameters are tuned to [2].
-#
-# - SERIAL LINKS CONTROLLER:
-#   SerialLink is a simple variation of the Bridge class, with the ability to
-#   account for the latency of packet serialization and controller latency. We
-#   assume that the serializer component at the transmitter side does not need
-#   to receive the whole packet to start the serialization. But the
-#   deserializer waits for the complete packet to check its integrity first.
-#
-#   * Bandwidth of the serial links is not modeled in the SerialLink component
-#     itself.
-#
-#   * Latency of serial link controller is composed of SerDes latency + link
-#     controller
-#
-#   * It is inferred from the standard [1] and the literature [3] that serial
-#     links share the same address range and packets can travel over any of
-#     them so a load distribution mechanism is required among them.
-#
-#   -----------------------------------------
-#   | Host/HMC Controller                   |
-#   |        ----------------------         |
-#   |        |  Link Aggregator   |  opt    |
-#   |        ----------------------         |
-#   |        ----------------------         |
-#   |        |  Serial Link + Ser | * 4     |
-#   |        ----------------------         |
-#   |---------------------------------------
-#   -----------------------------------------
-#   | Device
-#   |        ----------------------         |
-#   |        |       Xbar         | * 4     |
-#   |        ----------------------         |
-#   |        ----------------------         |
-#   |        |  Vault Controller  | * 16    |
-#   |        ----------------------         |
-#   |        ----------------------         |
-#   |        |     Memory         |         |
-#   |        ----------------------         |
-#   |---------------------------------------|
-#
-#   In this version we have present 3 different HMC archiecture along with
-#   alongwith their corresponding test script.
-#
-#   same: It has 4 crossbars in HMC memory. All the crossbars are connected
-#   to each other, providing complete memory range. This archicture also covers
-#   the added latency for sending a request to non-local vault(bridge in b/t
-#   crossbars). All the 4 serial links can access complete memory. So each
-#   link can be connected to separate processor.
-#
-#   distributed: It has 4 crossbars inside the HMC. Crossbars are not
-#   connected.Through each crossbar only local vaults can be accessed. But to
-#   support this architecture we need a crossbar between serial links and
-#   processor.
-#
-#   mixed: This is a hybrid architecture. It has 4 crossbars inside the HMC.
-#   2 Crossbars are connected to only local vaults. From other 2 crossbar, a
-#   request can be forwarded to any other vault.
-
 from __future__ import print_function
 from __future__ import absolute_import
 
@@ -305,19 +222,22 @@ def config_hmc_host_ctrl(opt, system):
     system.hmc_host = SubSystem()
 
     # Create additional crossbar for arch1
+    #@PIM - Create a memory bus for the Host CPU and a coherent pim_bus
     if opt.arch == "distributed" or opt.arch == "mixed":
         clk = '100GHz'
         vd = VoltageDomain(voltage='1V')
-        # Create additional crossbar for arch1
-        system.membus = NoncoherentXBar(width=8)
+    # Create additional crossbar for arch1
+        system.membus = NoncoherentXBar()
         system.membus.badaddr_responder = BadAddr()
         system.membus.default = Self.badaddr_responder.pio
-        system.membus.width = 8
-        system.membus.frontend_latency = 3
-        system.membus.forward_latency = 4
+        system.membus.width = 16
+        system.membus.frontend_latency = 2
+        system.membus.forward_latency = 1
         system.membus.response_latency = 2
         cd = SrcClockDomain(clock=clk, voltage_domain=vd)
         system.membus.clk_domain = cd
+
+    #@PIM - Creating a pim_bus(inside the memory device) for connecting the PIM Core to the memory 
         system.pim_bus = [CoherentXBar(width=128,
                           frontend_latency=1,
                           forward_latency=0,
@@ -326,16 +246,19 @@ def config_hmc_host_ctrl(opt, system):
 
     # create memory ranges for the serial links
     slar = convert.toMemorySize(opt.serial_link_addr_range)
+
     # Memmory ranges of serial link for arch-0. Same as the ranges of vault
     # controllers (4 vaults to 1 serial link)
     if opt.arch == "same":
         ser_ranges = [AddrRange(0, (4*slar)-1) for i in
                       range(opt.num_serial_links)]
+
     # Memmory ranges of serial link for arch-1. Distributed range accross
     # links
     if opt.arch == "distributed":
         ser_ranges = [AddrRange(i*slar, ((i+1)*slar)-1) for i in
                       range(opt.num_serial_links)]
+
     # Memmory ranges of serial link for arch-2 'Mixed' address distribution
     # over links
     if opt.arch == "mixed":
@@ -420,6 +343,7 @@ def config_hmc_dev(opt, system, hmc_host):
                           forward_latency=opt.xbar_forward_latency,
                           response_latency=opt.xbar_response_latency) for i in
           range(opt.number_mem_crossbar)]
+    
     system.hmc_dev.xbar = xb
     for i in range(opt.number_mem_crossbar):
         clk = opt.xbar_frequency

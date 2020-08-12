@@ -67,7 +67,6 @@ from common.Caches import *
 from common.cpu2000 import *
 
 def get_processes(options):
-    """Interprets provided options and returns a list of processes"""
 
     multiprocesses = []
     inputs = []
@@ -122,9 +121,10 @@ parser = optparse.OptionParser()
 Options.addCommonOptions(parser)
 Options.addSEOptions(parser)
 
-# @PIM
+# @PIM - Add the options related to the PIM
 Options.addPIMOptions(parser)
 Options.add_hmc_options(parser)
+
 if '--ruby' in sys.argv:
     Ruby.define_options(parser)
 
@@ -198,32 +198,9 @@ system.cpu_clk_domain = SrcClockDomain(clock = options.cpu_clock,
                                        voltage_domain =
                                        system.cpu_voltage_domain)
 
-# If elastic tracing is enabled, then configure the cpu and attach the elastic
-# trace probe
-if options.elastic_trace_en:
-    CpuConfig.config_etrace(CPUClass, system.cpu, options)
-
-# All cpus belong to a common cpu_clk_domain, therefore running at a common
-# frequency.
+# Create the Host CPU 
 for cpu in system.cpu:
     cpu.clk_domain = system.cpu_clk_domain
-
-# if CpuConfig.is_kvm_cpu(CPUClass) or CpuConfig.is_kvm_cpu(FutureClass):
-#     if buildEnv['TARGET_ISA'] == 'x86':
-#         system.kvm_vm = KvmVM()
-#         for process in multiprocesses:
-#             process.useArchPT = True
-#             process.kvmInSE = True
-#     else:
-#         fatal("KvmCPU can only be used in SE mode with x86")
-
-# Sanity check
-if options.simpoint_profile:
-    if not CpuConfig.is_atomic_cpu(CPUClass):
-        fatal("SimPoint/BPProbe should be done with an atomic cpu")
-    if np > 1:
-        fatal("SimPoint generation not supported with more than one CPUs")
-
 for i in xrange(np):
     if options.smt:
         system.cpu[i].workload = multiprocesses
@@ -232,104 +209,27 @@ for i in xrange(np):
     else:
         system.cpu[i].workload = multiprocesses[i]
 
-    if options.simpoint_profile:
-        system.cpu[i].addSimPointProbe(options.simpoint_interval)
-
-    if options.checker:
-        system.cpu[i].addCheckerCpu()
-
-    if options.bp_type:
-        bpClass = BPConfig.get(options.bp_type)
-        system.cpu[i].branchPred = bpClass()
-
     system.cpu[i].createThreads()
 
-if options.ruby:
-    Ruby.create_system(options, False, system)
-    assert(options.num_cpus == len(system.ruby._cpu_ports))
 
-    system.ruby.clk_domain = SrcClockDomain(clock = options.ruby_clock,
-                                        voltage_domain = system.voltage_domain)
-    for i in xrange(np):
-        ruby_port = system.ruby._cpu_ports[i]
 
-        # Create the interrupt controller and connect its ports to Ruby
-        # Note that the interrupt controller is always present but only
-        # in x86 does it have message ports that need to be connected
-        system.cpu[i].createInterruptController()
+MemClass = Simulation.setMemClass(options)
+# If the mem-type is HMC, memory bus is configured in HMC.py
+if not options.mem_type.startswith("HMC"):
+    system.membus = IOXBar()
 
-        # Connect the cpu's cache ports to Ruby
-        system.cpu[i].icache_port = ruby_port.slave
-        system.cpu[i].dcache_port = ruby_port.slave
-        if buildEnv['TARGET_ISA'] == 'x86':
-            system.cpu[i].interrupts[0].pio = ruby_port.master
-            system.cpu[i].interrupts[0].int_master = ruby_port.slave
-            system.cpu[i].interrupts[0].int_slave = ruby_port.master
-            system.cpu[i].itb.walker.port = ruby_port.slave
-            system.cpu[i].dtb.walker.port = ruby_port.slave
-else:
-    MemClass = Simulation.setMemClass(options)
-    if not options.mem_type.startswith("HMC"):
-        system.membus = IOXBar()
-    MemConfig.config_mem(options, system)
-    CacheConfig.config_cache(options, system)
-    system.system_port = system.membus.slave
-    np = options.num_cpus
-    num_pim_cpus = 1
+#@PIM - Create a PIM CPU
+system.pim_cpu = TimingSimpleCPU(switched_out =True) 
+pim_vd = VoltageDomain(voltage="1.0V")
+system.pim_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
+print ("Creating PIM processor ")
+system.pim_cpu.workload = system.cpu[0].workload[0]
+system.pim_cpu.createThreads()
 
-    if num_pim_cpus==1:
-        system.pim_cpu = TimingSimpleCPU(switched_out =True) 
-        pim_vd = VoltageDomain(voltage="1.0V")
-        system.pim_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        print ("Creating PIM processor ")
+#Configuring the memory and caches
+MemConfig.config_mem(options, system)
+CacheConfig.config_cache(options, system)
+system.system_port = system.membus.slave
 
-        system.pim_cpu.icache_port = system.membus.slave
-        system.pim_cpu.dcache_port = system.membus.slave
-        system.pim_cpu.workload = system.cpu[0].workload[0]
-
-        system.pim_cpu.createThreads()
-    elif num_pim_cpus>1:
-        system.pim_cpu0 = TimingSimpleCPU(switched_out =True,cpu_id=1) 
-        pim_vd = VoltageDomain(voltage="1.0V")
-        system.pim_cpu0.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        print ("Creating PIM processor 0")
-        system.pim_cpu0.workload = system.cpu[0].workload[0]
-        system.pim_cpu0.createThreads()
-        system.pim_cpu0.icache_port = system.membus.slave
-        system.pim_cpu0.dcache_port = system.membus.slave
-
-        system.pim_cpu1 = TimingSimpleCPU(switched_out=True,cpu_id=2) 
-        pim_vd = VoltageDomain(voltage="1.0V")
-        system.pim_cpu1.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        print ("Creating PIM processor 1")
-        system.pim_cpu1.workload = system.cpu[0].workload[0]
-        system.pim_cpu1.createThreads()
-        system.pim_cpu1.icache_port = system.membus.slave
-        system.pim_cpu1.dcache_port = system.membus.slave
-
-        # system.pim_cpu2 = TimingSimpleCPU(switched_out =True) 
-        # pim_vd = VoltageDomain(voltage="1.0V")
-        # system.pim_cpu2.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        # print ("Creating PIM processor 2")
-        # system.pim_cpu2.workload = system.cpu[0].workload[0]
-        # system.pim_cpu2.createThreads()
-        # system.pim_cpu2.icache_port = system.membus.slave
-        # system.pim_cpu2.dcache_port = system.membus.slave
-
-        # system.pim_cpu3 = TimingSimpleCPU(switched_out=True) 
-        # pim_vd = VoltageDomain(voltage="1.0V")
-        # system.pim_cpu3.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = pim_vd)
-        # print ("Creating PIM processor 3")
-        # system.pim_cpu3.workload = system.cpu[0].workload[0]
-        # system.pim_cpu3.createThreads()
-        # system.pim_cpu3.icache_port = system.membus.slave
-        # system.pim_cpu3.dcache_port = system.membus.slave
-
-    #MemConfig.config_mem(options, system)
-    #CacheConfig.config_cache(options, system)
-    #system.system_port = system.membus.slave
-        
-
-    #system.pim_cpu.isa = ['x86']
 root = Root(full_system = False, system = system)
 Simulation.run(options, root, system, FutureClass)
