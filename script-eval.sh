@@ -15,10 +15,10 @@ if [ -e ./merkle/input_gen.txt ]; then
 	echo "Continuing to simulation"
 else
 	echo "Enter the size of the random file to be generated in bytes:"
-	# size=4194304
-	read size
+	size=1024 #4194304
+	#read size
 	echo "Generating input file. Please wait..."
-	python3 ./merkle/InputGen.py --file-size=${size}
+	python3 ./merkle/InputGen.py --file-size=${size} 
 	echo "File generated at ./merkle/ with name input_gen.txt"
 fi
 
