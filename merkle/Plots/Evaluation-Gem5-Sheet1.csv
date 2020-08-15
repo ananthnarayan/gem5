@@ -1,0 +1,8 @@
+Attributes,1K-DDR,1K-PIM,1M-DDR,1M-PIM,8M-DDR,8M-PIM
+system.cpu.icache.overall_accesses::total,1275995,25749,334892729,977344,,
+system.cpu.dcache.overall_accesses::total ,457214,8837,128565629,273632,,
+system.l2.overall_accesses::total,1093,999,9039,5731,,
+system.l2.overall_miss_latency::total,101870000,142004000,316481000,790122000,,
+system.membus.reqLayer0.occupancy,1089000,9980,3494000,55640,2360000,15460
+system.membus.respLayer0.occupancy,5814000,49900,18502750,278200,,
+system.cpu.numCycles,3571571,214023,927371890,3311601,,
