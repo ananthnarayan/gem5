@@ -5,7 +5,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--file-size", type=int)
 args = parser.parse_args()
 
-file = open("./workload/merkle/input_gen.txt","w")
+file = open("./merkle/input_gen.txt","w")
 inp = "qwertyuiopasdfghjklzxcvbnm0123456789"
 st = ""
 for _ in range(args.file_size):
