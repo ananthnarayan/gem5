@@ -11,11 +11,10 @@ echo "Script executing..."
 #This gives us 3 different configs for an input of given size. 
 #1kb, 64kb, 8mb, 16mb
 
-filesizes=( 8388608 16777216 )
-filesizenames=( "8m" "16m" "32m" "64m" )
+filesizes=( 8388608 16777216 33554432 67108864 )
+filesizenames=( "f8M" "f16M" "f32M" "f64M" )
 
-
-l=${#blocksizes[@]}
+l=${#filesizes[@]}
 echo "Starting simulations"
 
 gem5=gem5.opt
@@ -23,18 +22,22 @@ cachesize=64kB
 l2_size=4MB
 i=0
 blocksize=8388608
+blocksizename="8M"
 #Executing merkle tree with 3 different configurations
 for((i=0;i<$l;i++)); do
 	mkdir -p m5out 
-	filesize=${filesize[$i]}
+	filesize=${filesizes[$i]}
 	filesizename=${filesizenames[$i]}
-	input_file_name=
-	if [ -e ./workload/merkle/ ]; then
-		echo "input_file exists. Please delete current file and rerun this script if you want to regenerate the input."
+	input_file_name="input_gen_${filesizenames[$i]}.txt"
+	if [ -e ./workload/merkle/$input_file_name ]; then
+		echo "$input_file_name exists. Please delete current file and rerun this script if you want to regenerate the input."
+		cp ./workload/merkle/$input_file_name ./workload/merkle/input_gen.txt
 	else
-		echo "Generating input file. Please wait..."
+		echo "Generating input file of size ${filesizenames[$i]}. Please wait..."
 		python3 ./workload/merkle/InputGen.py --file-size=${filesize} 
 		echo "File generated at ./workload/merkle/ with name input_gen.txt"
+		echo "Copying input file to $input_file_name"
+		cp ./workload/merkle/input_gen.txt workload/merkle/$input_file_name
 	fi
 	
 	echo "========== DDR,        Blocksize: ${blocksizenames[$i]} ($blocksize bytes) =========="
@@ -54,7 +57,7 @@ for((i=0;i<$l;i++)); do
 #Generating a stats comparison file
 #./m5out/input_attr.txt has a list of attributes to be compared, new attributes can be added or removed
 	python3 ./merkle/StatsComparison.py --file-path="./m5out/merkle_ddr.txt;./m5out/merkle_pim.txt" --output-path="./m5out/output_comparison.txt" --attr-path="./merkle/input_attr.txt"
-	target_out_dir=m5out-$filesizename
+	target_out_dir=m5out-$blocksizename-$filesizename
 	echo "Moving m5out to $target_out_dir"
 	#mkdir -p $target_out_dir
 	cp -r m5out $target_out_dir
