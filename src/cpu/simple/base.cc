@@ -204,6 +204,7 @@ void
 BaseSimpleCPU::haltContext(ThreadID thread_num)
 {
     // for now, these are equivalent
+    cout<<"IN BaseSimpleCPU\n\n";
     suspendContext(thread_num);
     updateCycleCounters(BaseCPU::CPU_STATE_SLEEP);
 }

@@ -226,6 +226,13 @@ print ("Creating PIM processor ")
 system.pim_cpu.workload = system.cpu[0].workload[0]
 system.pim_cpu.createThreads()
 
+#@PIM - Creating another core to recive back
+system.host_cpu = DerivO3CPU(switched_out =True) 
+host_vd = VoltageDomain(voltage="1.0V")
+system.host_cpu.clk_domain = SrcClockDomain(clock = '1GHz', voltage_domain = host_vd)
+system.host_cpu.workload = system.cpu[0].workload[0]
+system.host_cpu.createThreads()
+
 #Configuring the memory and caches
 MemConfig.config_mem(options, system)
 CacheConfig.config_cache(options, system)

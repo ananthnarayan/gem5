@@ -191,7 +191,6 @@ void
 TimingSimpleCPU::takeOverFrom(BaseCPU *oldCPU)
 {
     BaseSimpleCPU::takeOverFrom(oldCPU);
-
     previousCycle = curCycle();
 }
 
@@ -208,7 +207,6 @@ void
 TimingSimpleCPU::activateContext(ThreadID thread_num)
 {
     DPRINTF(SimpleCPU, "ActivateContext %d\n", thread_num);
-
     assert(thread_num < numThreads);
 
     threadInfo[thread_num]->notIdleFraction = 1;
@@ -232,7 +230,7 @@ void
 TimingSimpleCPU::suspendContext(ThreadID thread_num)
 {
     DPRINTF(SimpleCPU, "SuspendContext %d\n", thread_num);
-
+    
     assert(thread_num < numThreads);
     activeThreads.remove(thread_num);
 
@@ -1076,68 +1074,68 @@ TimingSimpleCPU::printAddr(Addr a)
     dcachePort.printAddr(a);
 }
 
-//@PIM - Used to the p_id of the current CPU
-uint64_t
-TimingSimpleCPU::get_pim(ThreadContext *tc)
-{
-    return this->p_id;
-}
+// //@PIM - Used to the p_id of the current CPU
+// uint64_t
+// TimingSimpleCPU::get_pim(ThreadContext *tc)
+// {
+//     return this->p_id;
+// }
 
-//@PIM - PIM Function helps in transfering control from HOST to PIM CPU
-void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
-{ 
-    BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+// //@PIM - PIM Function helps in transfering control from HOST to PIM CPU
+// void TimingSimpleCPU::PIM(ThreadContext *tc, uint64_t p_id)
+// { 
+//     BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
 
-    if(!pim_cpu)
-    {  
-      pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(p_id)).data());
+//     if(!pim_cpu)
+//     {  
+//       pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(p_id)).data());
 
-      if(tc->getCpuPtr() == pim_cpu)
-        return;
+//       if(tc->getCpuPtr() == pim_cpu)
+//         return;
       
-      if(!pim_cpu)
-        fatal("Found no HOST processors.");
-    }
+//       if(!pim_cpu)
+//         fatal("Found no HOST processors.");
+//     }
     
-    if(tc->getCpuPtr() == pim_cpu)
-    {
-      return;
-    }
-    pim_cpu->host_id = this->cpuId();
-    cout<<"Transferring control to PIM\n";
-    pim_cpu->takeOverFrom(this);
-    this->haltContext(curThread);
-    pim_cpu->activateContext(0);
-    return;
-}
+//     if(tc->getCpuPtr() == pim_cpu)
+//     {
+//       return;
+//     }
+//     pim_cpu->host_id = this->cpuId();
+//     cout<<"Transferring control to PIM\n";
+//     pim_cpu->takeOverFrom(this);
+//     this->haltContext(curThread);
+//     pim_cpu->activateContext(0);
+//     return;
+// }
 
-//@PIM - HOST Function helps in transfering control from PIM to HOST CPU
-void TimingSimpleCPU::HOST(ThreadContext *tc)
-{   
-    BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
+// //@PIM - HOST Function helps in transfering control from PIM to HOST CPU
+// void TimingSimpleCPU::HOST(ThreadContext *tc)
+// {   
+//     BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
 
-    if(!host_cpu)
-    {  
-      host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
+//     if(!host_cpu)
+//     {  
+//       host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
 
-      if(tc->getCpuPtr() == host_cpu)
-        return;
+//       if(tc->getCpuPtr() == host_cpu)
+//         return;
       
-      if(!host_cpu)
-        fatal("Found no HOST processors.");
-    }
+//       if(!host_cpu)
+//         fatal("Found no HOST processors.");
+//     }
     
-    if(tc->getCpuPtr() == host_cpu)
-    {  
-      return;
-    }
-    host_cpu->host_id = this->host_id;
-    cout<<"Transferring control to HOST\n";
-    host_cpu->takeOverFrom(this);
-    this->haltContext(curThread);
-    host_cpu->activateContext(0);
-    return;
-}
+//     if(tc->getCpuPtr() == host_cpu)
+//     {  
+//       return;
+//     }
+//     host_cpu->host_id = this->host_id;
+//     cout<<"Transferring control to HOST\n";
+//     host_cpu->takeOverFrom(this);
+//     this->haltContext(curThread);
+//     host_cpu->activateContext(0);
+//     return;
+// }
 
 
 TimingSimpleCPU *

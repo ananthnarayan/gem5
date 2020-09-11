@@ -187,10 +187,17 @@ class SystemXBar(CoherentXBar):
 class IOXBar(NoncoherentXBar):
     # 128-bit crossbar by default
     width = 16
-
-    # Assume a simpler datapath than a coherent crossbar, incuring
-    # less pipeline stages for decision making and forwarding of
-    # requests.
     frontend_latency = 2
     forward_latency = 1
     response_latency = 2
+    # Assume a simpler datapath than a coherent crossbar, incuring
+    # less pipeline stages for decision making and forwarding of
+    # requests.
+
+                            
+                            
+                            
+                            
+                            
+                            
+                            

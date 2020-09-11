@@ -616,20 +616,8 @@ DRAMCtrl::recvTimingReq(PacketPtr pkt)
     qosSchedule( { &readQueue, &writeQueue }, burstSize, pkt);
 
     // check local buffers and do not accept if full
-    if (pkt->isWrite()) {
-        assert(size != 0);
-        if (writeQueueFull(dram_pkt_count)) {
-            DPRINTF(DRAM, "Write queue full, not accepting\n");
-            // remember that we have to retry this port
-            retryWrReq = true;
-            stats.numWrRetry++;
-            return false;
-        } else {
-            addToWriteQueue(pkt, dram_pkt_count);
-            stats.writeReqs++;
-            stats.bytesWrittenSys += size;
-        }
-    } else {
+
+     if(pkt->isRead()){
         assert(pkt->isRead());
         assert(size != 0);
         if (readQueueFull(dram_pkt_count)) {
@@ -644,6 +632,20 @@ DRAMCtrl::recvTimingReq(PacketPtr pkt)
             stats.bytesReadSys += size;
         }
     }
+    else {
+        assert(size != 0);
+        if (writeQueueFull(dram_pkt_count)) {
+            DPRINTF(DRAM, "Write queue full, not accepting\n");
+            // remember that we have to retry this port
+            retryWrReq = true;
+            stats.numWrRetry++;
+            return false;
+        } else {
+            addToWriteQueue(pkt, dram_pkt_count);
+            stats.writeReqs++;
+            stats.bytesWrittenSys += size;
+        }
+}
 
     return true;
 }

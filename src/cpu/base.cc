@@ -589,6 +589,9 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
         Port *new_itb_port = newTC->getITBPtr()->getTableWalkerPort();
         Port *new_dtb_port = newTC->getDTBPtr()->getTableWalkerPort();
 
+        oldCPU->flushTLBs();
+        flushTLBs();
+        //oldTC->flushTLBs();
         // Move over any table walker ports if they exist
         if (new_itb_port)
             new_itb_port->takeOverFrom(old_itb_port);
@@ -684,9 +687,9 @@ BaseCPU::takeOverFrom(BaseCPU *oldCPU)
     
 
     //@PIM - Flushing the cache of the PIM CPU
-    host_cpu =(BaseCPU*)SimObject::find("system.cpu");
+    host_cpu =(BaseCPU*)SimObject::find("system.host_cpu");
     if(!host_cpu){//to handle the case of the multiple CPUs 
-            host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
+            host_cpu=(BaseCPU*)SimObject::find(("system.host_cpu"+std::to_string(this->host_id)).data());
     }
    if(host_cpu==this)
    {  
@@ -861,3 +864,66 @@ BaseCPU::waitForRemoteGDB() const
     return params()->wait_for_remote_gdb;
 }
 
+
+uint64_t
+BaseCPU::get_pim(ThreadContext *tc)
+{
+    return this->p_id;
+}
+
+//@PIM - PIM Function helps in transfering control from HOST to PIM CPU
+void 
+BaseCPU::PIM(ThreadContext *tc, uint64_t p_id)
+{ 
+    BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+
+    if(!pim_cpu)
+    {  
+      pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(p_id)).data());
+
+      if(tc->getCpuPtr() == pim_cpu)
+        return;
+      
+      if(!pim_cpu)
+        fatal("Found no HOST processors.");
+    }
+    
+    if(tc->getCpuPtr() == pim_cpu)
+    {
+      return;
+    }
+    pim_cpu->host_id = this->cpuId();
+    cout<<"Transferring control to PIM\n";
+    pim_cpu->takeOverFrom(this);
+    this->haltContext(0);
+    pim_cpu->activateContext(0);
+    return;
+}
+
+//@PIM - HOST Function helps in transfering control from PIM to HOST CPU
+void 
+BaseCPU::HOST(ThreadContext *tc)
+{   
+    BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.host_cpu");
+    if(!host_cpu)
+    {  
+      host_cpu=(BaseCPU*)SimObject::find(("system.host_cpu"+std::to_string(this->host_id)).data());
+
+      if(tc->getCpuPtr() == host_cpu)
+        return;
+      
+      if(!host_cpu)
+        fatal("Found no HOST processors.");
+    }
+    
+    if(tc->getCpuPtr() == host_cpu)
+    {  
+      return;
+    }
+    host_cpu->host_id = this->host_id;
+    cout<<"Transferring control to HOST\n";
+    host_cpu->takeOverFrom(this);
+    this->haltContext(0);
+    host_cpu->activateContext(0);
+    return;
+}

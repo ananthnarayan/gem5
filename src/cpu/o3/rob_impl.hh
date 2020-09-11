@@ -217,7 +217,7 @@ ROB<Impl>::insertInst(const DynInstPtr &inst)
     //Set Up head iterator if this is the 1st instruction in the ROB
     if (numInstsInROB == 0) {
         head = instList[tid].begin();
-        assert((*head) == inst);
+        //assert((*head) == inst);
     }
 
     //Must Decrement for iterator to actually be valid  since __.end()

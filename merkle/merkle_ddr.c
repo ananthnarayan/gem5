@@ -102,6 +102,7 @@ int main(int argc, char** argv)
 
 	unsigned int num_hashes_to_process = num_blocks;
 	fprintf(stderr, "invoking run_merkle\n");
+	printf("%s\n",hashes_as_strings[0]);
 	run_merkle(num_hashes_to_process, hashes_as_strings);
 	fprintf(stdout, "Blocks %d\n", num_blocks);
 	fprintf(stdout, "Final hash: %s\n", hashes_as_strings[0]);

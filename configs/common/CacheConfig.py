@@ -59,6 +59,46 @@ def config_cache(options, system):
         system.pim_cpu.itb_walker_cache.mem_side =system.topim_l2bus.slave
         system.pim_cpu.dtb_walker_cache.mem_side =system.topim_l2bus.slave
 
+         #@PIM - Creating the Cache objects for the PIM CPU
+        host_icache = icache_class(size=options.l1i_size,
+                      assoc=options.l1i_assoc)
+        host_dcache = dcache_class(size=options.l1d_size,
+                          assoc=options.l1d_assoc)
+
+        #@PIM - Creating PageTableCache for the PIM CPU
+        if walk_cache_class:
+            host_iwalkcache = walk_cache_class()
+            host_dwalkcache = walk_cache_class()
+        else:
+            host_iwalkcache = None
+            host_dwalkcache = None
+    
+        #@PIM - Connect all the ports of the created cache object to PIM Cpu
+        system.host_cpu.icache = host_icache
+        system.host_cpu.dcache = host_dcache
+        system.host_cpu.icache_port = host_icache.cpu_side
+        system.host_cpu.dcache_port = host_dcache.cpu_side
+        system.host_cpu.itb_walker_cache = host_iwalkcache
+        system.host_cpu.dtb_walker_cache = host_dwalkcache
+        system.host_cpu.itb.walker.port = host_iwalkcache.cpu_side
+        system.host_cpu.dtb.walker.port = host_dwalkcache.cpu_side
+
+        #@PIM - Creating L2 Cache for PIM 
+        system.host_l2 = l2_cache_class(clk_domain=system.cpu_clk_domain,
+                               size=options.l2_size,
+                               assoc=options.l2_assoc)
+
+        #@PIM - Creating L2 bus and connecting the L2 Cache Object to it
+        system.tohost_l2bus = L2XBar(clk_domain = system.cpu_clk_domain)
+        system.host_l2.cpu_side = system.tohost_l2bus.master
+        system.host_l2.mem_side = system.membus.slave
+    
+        #@PIM - Connecting the L2 bus to Memory
+        system.host_cpu.icache.mem_side = system.tohost_l2bus.slave 
+        system.host_cpu.dcache.mem_side =system.tohost_l2bus.slave
+        system.host_cpu.itb_walker_cache.mem_side =system.tohost_l2bus.slave
+        system.host_cpu.dtb_walker_cache.mem_side =system.tohost_l2bus.slave
+
     
     #Create Cache for host CPU
     icache = icache_class(size=options.l1i_size,
@@ -103,7 +143,7 @@ def config_cache(options, system):
     system.cpu[0].itb_walker_cache.mem_side =system.tocpu_l2bus.slave
     system.cpu[0].dtb_walker_cache.mem_side =system.tocpu_l2bus.slave
 
-    #Connect the Created interrupts to the Memory bus
+    #Connect the Created interrupts to the Memory 
     system.cpu[0].interrupts[0].pio = system.membus.master
     system.cpu[0].interrupts[0].int_master = system.membus.slave
     system.cpu[0].interrupts[0].int_slave = system.membus.master

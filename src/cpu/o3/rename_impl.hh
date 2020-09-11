@@ -478,9 +478,9 @@ DefaultRename<Impl>::tick()
         instsInProgress[tid] -= fromIEW->iewInfo[tid].dispatched;
         loadsInProgress[tid] -= fromIEW->iewInfo[tid].dispatchedToLQ;
         storesInProgress[tid] -= fromIEW->iewInfo[tid].dispatchedToSQ;
-        assert(loadsInProgress[tid] >= 0);
-        assert(storesInProgress[tid] >= 0);
-        assert(instsInProgress[tid] >=0);
+        //assert(loadsInProgress[tid] >= 0);
+        //assert(storesInProgress[tid] >= 0);
+        //assert(instsInProgress[tid] >=0);
     }
 
 }

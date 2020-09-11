@@ -118,7 +118,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
      * tracking). */
     state->complete();
 
-    assert(!cpu->switchedOut());
+    //assert(!cpu->switchedOut());
     if (!inst->isSquashed()) {
         if (state->needWB) {
             // Only loads, store conditionals and atomics perform the writeback

@@ -118,7 +118,7 @@ MemCmd::commandInfo[] =
     { SET5(IsWrite, NeedsWritable, IsRequest, NeedsResponse, HasData),
             WriteResp, "WriteLineReq" },
     /* UpgradeReq */
-    { SET6(IsInvalidate, NeedsWritable, IsUpgrade, IsRequest, NeedsResponse,
+    { SET7(IsWrite,IsInvalidate, NeedsWritable, IsUpgrade, IsRequest, NeedsResponse,
             FromCache),
             UpgradeResp, "UpgradeReq" },
     /* SCUpgradeReq: response could be UpgradeResp or UpgradeFailResp */

@@ -388,7 +388,7 @@ DefaultFetch<Impl>::processCacheCompletion(PacketPtr pkt)
     ThreadID tid = cpu->contextToThread(pkt->req->contextId());
 
     DPRINTF(Fetch, "[tid:%i] Waking up from cache miss.\n", tid);
-    assert(!cpu->switchedOut());
+    //assert(!cpu->switchedOut());
 
     // Only change the status if it's still waiting on the icache access
     // to return.
@@ -1157,7 +1157,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     //////////////////////////////////////////
     ThreadID tid = getFetchingThread();
 
-    assert(!cpu->switchedOut());
+    //assert(!cpu->switchedOut());
 
     if (tid == InvalidThreadID) {
         // Breaks looping condition in tick()

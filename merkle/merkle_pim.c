@@ -100,11 +100,9 @@ int main(int argc, char** argv)
 		//fprintf(stdout, "\t%s\n", hashes_as_strings[i]);
 		i++;
 	}
-
 	unsigned int num_hashes_to_process = num_blocks;
 	fprintf(stderr, "invoking run_merkle\n");
 	run_merkle(num_hashes_to_process, hashes_as_strings);
-	m5_host_process();
 	fprintf(stdout, "Blocks %d\n", num_blocks);
 	fprintf(stdout, "Final hash: %s\n", hashes_as_strings[0]);
 	for(int j = 0; j < num_blocks; j++)
@@ -117,5 +115,7 @@ int main(int argc, char** argv)
 	free(text);
 	free(hashes);
 	free(hashes_as_strings);
-	return(0);
+	m5_host_process();
+	printf("\n");
+	return 0;
 }

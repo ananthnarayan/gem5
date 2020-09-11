@@ -27,3 +27,14 @@ system.cpu.numCycles
 system.l2.overall_misses::total
 system.l2.overall_hits::total
 system.l2.overall_miss_rate::total
+system.cpu.icache.overall_accesses::total
+system.cpu.dcache.overall_accesses::total 
+system.l2.overall_accesses::total
+system.l2.overall_miss_latency::total
+system.membus.reqLayer0.occupancy
+system.membus.respLayer0.occupancy
+system.cpu.numCycles
+system.l2.overall_hits::total 
+system.l2.overall_misses::total
+system.membus.power_state.pwrStateResidencyTicks
+sim_seconds (DDR vs PIM)

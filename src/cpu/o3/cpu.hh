@@ -673,6 +673,9 @@ class FullO3CPU : public BaseO3CPU
 
     /** Gets a free thread id. Use if thread ids change across system. */
     ThreadID getFreeTid();
+    // void PIM(ThreadContext *tc, uint64_t p_id) override;
+    // void HOST(ThreadContext *tc) override;
+    // uint64_t get_pim(ThreadContext *tc) override;
 
   public:
     /** Returns a pointer to a thread context. */

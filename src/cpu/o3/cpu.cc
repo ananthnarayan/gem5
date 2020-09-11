@@ -519,8 +519,8 @@ void
 FullO3CPU<Impl>::tick()
 {
     DPRINTF(O3CPU, "\n\nFullO3CPU: Ticking main, FullO3CPU.\n");
-    assert(!switchedOut());
-    assert(drainState() != DrainState::Drained);
+    //assert(!switchedOut());
+    //assert(drainState() != DrainState::Drained);
 
     ++numCycles;
     updateCycleCounters(BaseCPU::CPU_STATE_ON);
@@ -636,7 +636,7 @@ FullO3CPU<Impl>::deactivateThread(ThreadID tid)
         std::find(activeThreads.begin(), activeThreads.end(), tid);
 
     DPRINTF(O3CPU, "[tid:%i] Calling deactivate thread.\n", tid);
-    assert(!switchedOut());
+   // assert(!switchedOut());
 
     if (thread_it != activeThreads.end()) {
         DPRINTF(O3CPU,"[tid:%i] Removing from active threads list\n",
@@ -678,7 +678,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::activateContext(ThreadID tid)
 {
-    assert(!switchedOut());
+    //assert(!switchedOut());
 
     // Needs to set each stage to running as well.
     activateThread(tid);
@@ -693,7 +693,7 @@ FullO3CPU<Impl>::activateContext(ThreadID tid)
     // schedule the next tick and wake up the fetch unit
     if (lastActivatedCycle == 0 || lastActivatedCycle < curTick()) {
         scheduleTickEvent(Cycles(0));
-
+       // cout<<"I m here\n";
         // Be sure to signal that there's some activity so the CPU doesn't
         // deschedule itself.
         activityRec.activity();
@@ -718,7 +718,7 @@ void
 FullO3CPU<Impl>::suspendContext(ThreadID tid)
 {
     DPRINTF(O3CPU,"[tid:%i] Suspending Thread Context.\n", tid);
-    assert(!switchedOut());
+    //assert(!switchedOut());
 
     deactivateThread(tid);
 
@@ -730,7 +730,6 @@ FullO3CPU<Impl>::suspendContext(ThreadID tid)
     }
 
     DPRINTF(Quiesce, "Suspending Context\n");
-
     BaseCPU::suspendContext(tid);
 }
 
@@ -740,11 +739,11 @@ FullO3CPU<Impl>::haltContext(ThreadID tid)
 {
     //For now, this is the same as deallocate
     DPRINTF(O3CPU,"[tid:%i] Halt Context called. Deallocating\n", tid);
-    assert(!switchedOut());
+    //assert(!switchedOut());
 
     deactivateThread(tid);
     removeThread(tid);
-
+    suspendContext(tid);
     updateCycleCounters(BaseCPU::CPU_STATE_SLEEP);
 }
 
@@ -826,9 +825,9 @@ FullO3CPU<Impl>::removeThread(ThreadID tid)
     // at this step, all instructions in the pipeline should be already
     // either committed successfully or squashed. All thread-specific
     // queues in the pipeline must be empty.
-    assert(iew.instQueue.getCount(tid) == 0);
-    assert(iew.ldstQueue.getCount(tid) == 0);
-    assert(commit.rob->isEmpty(tid));
+    //assert(iew.instQueue.getCount(tid) == 0);
+    //assert(iew.ldstQueue.getCount(tid) == 0);
+    //assert(commit.rob->isEmpty(tid));
 
     // Reset ROB/IQ/LSQ Entries
 
@@ -1148,11 +1147,14 @@ FullO3CPU<Impl>::takeOverFrom(BaseCPU *oldCPU)
     iew.takeOverFrom();
     commit.takeOverFrom();
 
-    assert(!tickEvent.scheduled());
+   // assert(!tickEvent.scheduled());
 
     FullO3CPU<Impl> *oldO3CPU = dynamic_cast<FullO3CPU<Impl>*>(oldCPU);
-    if (oldO3CPU)
+    if (oldO3CPU){
         globalSeqNum = oldO3CPU->globalSeqNum;
+       // cout<<"YES in oldO3CPU\n\n";
+        oldO3CPU->_status=SwitchedOut;
+    }
 
     lastRunningCycle = curCycle();
     _status = Idle;
@@ -1834,6 +1836,73 @@ FullO3CPU<Impl>::exitThreads()
         }
     }
 }
+//@PIM - Used to the p_id of the current CPU
+// template <class Impl>
+// uint64_t
+// FullO3CPU<Impl>::get_pim(ThreadContext *tc)
+// {
+//     return this->p_id;
+// }
+
+// //@PIM - PIM Function helps in transfering control from HOST to PIM CPU
+// template <class Impl>
+// void 
+// FullO3CPU<Impl>::PIM(ThreadContext *tc, uint64_t p_id)
+// { 
+//     BaseCPU* pim_cpu =(BaseCPU*)SimObject::find("system.pim_cpu");
+
+//     if(!pim_cpu)
+//     {  
+//       pim_cpu=(BaseCPU*)SimObject::find(("system.pim_cpu"+std::to_string(p_id)).data());
+
+//       if(tc->getCpuPtr() == pim_cpu)
+//         return;
+      
+//       if(!pim_cpu)
+//         fatal("Found no HOST processors.");
+//     }
+    
+//     if(tc->getCpuPtr() == pim_cpu)
+//     {
+//       return;
+//     }
+//     pim_cpu->host_id = this->cpuId();
+//     cout<<"Transferring control to PIM\n";
+//     pim_cpu->takeOverFrom(this);
+//     this->haltContext(0);
+//     pim_cpu->activateContext(0);
+//     return;
+// }
+
+// //@PIM - HOST Function helps in transfering control from PIM to HOST CPU
+// template <class Impl>
+// void 
+// FullO3CPU<Impl>::HOST(ThreadContext *tc)
+// {   
+//     BaseCPU* host_cpu =(BaseCPU*)SimObject::find("system.cpu");
+
+//     if(!host_cpu)
+//     {  
+//       host_cpu=(BaseCPU*)SimObject::find(("system.cpu"+std::to_string(this->host_id)).data());
+
+//       if(tc->getCpuPtr() == host_cpu)
+//         return;
+      
+//       if(!host_cpu)
+//         fatal("Found no HOST processors.");
+//     }
+    
+//     if(tc->getCpuPtr() == host_cpu)
+//     {  
+//       return;
+//     }
+//     host_cpu->host_id = this->host_id;
+//     cout<<"Transferring control to HOST\n";
+//     host_cpu->takeOverFrom(this);
+//     this->haltContext(0);
+//     host_cpu->activateContext(0);
+//     return;
+// }
 
 // Forward declaration of FullO3CPU.
 template class FullO3CPU<O3CPUImpl>;

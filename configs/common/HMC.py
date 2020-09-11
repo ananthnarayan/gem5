@@ -231,9 +231,9 @@ def config_hmc_host_ctrl(opt, system):
         system.membus.badaddr_responder = BadAddr()
         system.membus.default = Self.badaddr_responder.pio
         system.membus.width = 16
-        system.membus.frontend_latency = 2
+        system.membus.frontend_latency = 8
         system.membus.forward_latency = 1
-        system.membus.response_latency = 2
+        system.membus.response_latency = 8
         cd = SrcClockDomain(clock=clk, voltage_domain=vd)
         system.membus.clk_domain = cd
 

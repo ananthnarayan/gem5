@@ -620,16 +620,9 @@ class BaseCPU : public ClockedObject
 
     Cycles syscallRetryLatency;
 
-    virtual void PIM(ThreadContext *tc, uint64_t p_id){
-        fatal("Base CPU cannot process PIM.");
-    };
-
-    virtual void HOST(ThreadContext *tc){
-        fatal("PIM CPU cannot process Base CPU.");
-    };
-    virtual uint64_t get_pim(ThreadContext *tc){
-        fatal("PIM CPU Id cannot br tgrsdzx.");
-    };
+    void PIM(ThreadContext *tc, uint64_t p_id);
+    void HOST(ThreadContext *tc);
+    uint64_t get_pim(ThreadContext *tc);
   // Enables CPU to enter power gating on a configurable cycle count
   protected:
     void enterPwrGating();
