@@ -11,8 +11,7 @@
 
 #include "sha256.h"
 #include "merkle.h"
-#include "home/Desktop/narayan/PIM/gem/include/gem5/m5ops.h"
-#include "home/Desktop/narayan/PIM/gem/include/gem5/asm/generic/m5ops.h"
+void run_merkle(int num_hashes_to_process, char **hashes_as_strings);
 
 #define LENGTH_HASH_AS_STRING (SHA256_BLOCK_SIZE * 2 + 1)  
 int main(int argc, char** argv)
@@ -144,6 +143,7 @@ int main(int argc, char** argv)
  * and calculate the hash. It doesn't imply that the tree structure
  * formed by this combination will be balanced. 
  * */
+/*
 void run_merkle(int num_hashes_to_process, char **hashes_as_strings)
 {
 	SHA256_CTX ctx;
@@ -194,6 +194,7 @@ void run_merkle(int num_hashes_to_process, char **hashes_as_strings)
 
 	}
 }
+*/
 /*
  
  * */
